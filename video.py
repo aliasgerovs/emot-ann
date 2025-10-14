@@ -7,20 +7,19 @@ import tempfile
 import shutil
 
 class VideoEmotionAnnotator:
-    def __init__(self):
-        self.current_clips = []
-        self.participant_id = ""
-        self.annotations = []
-        self.temp_dir = tempfile.mkdtemp()
+    def __del__(self):
+        try:
+            if hasattr(self, 'temp_dir') and os.path.exists(self.temp_dir):
+                shutil.rmtree(self.temp_dir)
+        except Exception as e:
+            print(f"Error cleaning up temp directory: {str(e)}")
     
     def format_time(self, seconds):
-        """Format seconds as MM:SS"""
         minutes = int(seconds // 60)
         secs = int(seconds % 60)
         return f"{minutes:02d}:{secs:02d}"
     
     def get_video_info(self, video_file):
-        """Get video duration and other info"""
         if not video_file:
             return 0, 0, 0
         cap = cv2.VideoCapture(video_file)
@@ -31,14 +30,12 @@ class VideoEmotionAnnotator:
         return duration, fps, frame_count
 
     def process_video(self, video_file, participant_id, start_time, interval, process_minutes):
-        """Process video into clips"""
         if not video_file or not participant_id:
             return "Please upload a video and provide a participant ID.", gr.update(choices=[])
         self.participant_id = participant_id
         
         duration, fps, frame_count = self.get_video_info(video_file)
         requested_seconds = (process_minutes or 0) * 60
-
         if requested_seconds <= 0:
             requested_seconds = 240
         end_time = min(start_time + requested_seconds, duration)
@@ -58,6 +55,7 @@ class VideoEmotionAnnotator:
         
         for frame_start in range(start_frame, end_frame, interval_frames):
             frame_end = min(frame_start + interval_frames, end_frame)
+            
             clip_path = os.path.join(self.temp_dir, f"clip_{clip_num:03d}.mp4")
             self.create_clip(video_file, frame_start/fps, frame_end/fps, clip_path)
             
@@ -79,35 +77,70 @@ class VideoEmotionAnnotator:
         return f"{time_range_msg}\n\nCreated {len(self.current_clips)} clips successfully!", gr.update(choices=clip_options, value=clip_options[0] if clip_options else None)
     
     def create_clip(self, input_video, start_time, end_time, output_path):
-        """Create video clip using OpenCV"""
-        cap = cv2.VideoCapture(input_video)
-        fps = cap.get(cv2.CAP_PROP_FPS)
-        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-        out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
-        cap.set(cv2.CAP_PROP_POS_MSEC, start_time * 1000)
-        
-        current_time = start_time
-        while current_time < end_time:
-            ret, frame = cap.read()
-            if not ret:
-                break
+        cap = None
+        out = None
+        try:
+            cap = cv2.VideoCapture(input_video)
+            if not cap.isOpened():
+                print(f"Error: Could not open video {input_video}")
+                return
             
-            out.write(frame)
-            current_time = cap.get(cv2.CAP_PROP_POS_MSEC) / 1000
-        
-        cap.release()
-        out.release()
+            fps = cap.get(cv2.CAP_PROP_FPS)
+            width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+            height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            
+            fourcc = cv2.VideoWriter_fourcc(*'avc1')
+            out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
+            
+            if not out.isOpened():
+                fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+                out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
+            
+            if not out.isOpened():
+                output_path_avi = output_path.replace('.mp4', '.avi')
+                fourcc = cv2.VideoWriter_fourcc(*'XVID')
+                out = cv2.VideoWriter(output_path_avi, fourcc, fps, (width, height))
+                if out.isOpened():
+                    output_path = output_path_avi
+            
+            if not out.isOpened():
+                print(f"Error: Could not create VideoWriter for {output_path}")
+                if cap:
+                    cap.release()
+                return
+            
+            cap.set(cv2.CAP_PROP_POS_MSEC, start_time * 1000)
+            
+            current_time = start_time
+            frames_written = 0
+            while current_time < end_time:
+                ret, frame = cap.read()
+                if not ret:
+                    break
+                
+                out.write(frame)
+                frames_written += 1
+                current_time = cap.get(cv2.CAP_PROP_POS_MSEC) / 1000
+            
+            print(f"Successfully wrote {frames_written} frames to {output_path}")
+            
+        except Exception as e:
+            print(f"Error creating clip: {str(e)}")
+        finally:
+            if cap is not None:
+                cap.release()
+            if out is not None:
+                out.release()
+            cv2.waitKey(1)
     
     def load_clip(self, selected_clip):
-        """Load selected clip for viewing"""
         if not selected_clip or not self.current_clips:
             return None
         
         try:
             clip_num_str = selected_clip.split()[1]
             clip_num = int(clip_num_str)
+            
             for clip in self.current_clips:
                 if clip['number'] == clip_num:
                     return clip['path']
@@ -116,13 +149,13 @@ class VideoEmotionAnnotator:
         return None
     
     def save_annotation(self, selected_clip, has_emotion, sadness_intensity, anger_intensity, pleasure_intensity, task_type, annotator_name):
-        """Save annotation for current clip"""
         if not selected_clip:
             return "Please select a clip first."
         
         try:
             clip_num = None
             clip_data = None
+            
             clip_num_str = selected_clip.split()[1]
             clip_num = int(clip_num_str)
             clip_data = next((clip for clip in self.current_clips if clip['number'] == clip_num), None)
@@ -133,6 +166,7 @@ class VideoEmotionAnnotator:
             return "Invalid clip selection."
         
         self.annotations = [ann for ann in self.annotations if ann['clip_number'] != clip_num]
+        
         annotation = {
             'participant_id': self.participant_id,
             'task_type': task_type,
@@ -153,7 +187,6 @@ class VideoEmotionAnnotator:
         return f"Annotation saved for Clip {clip_num:03d}. Total annotated: {len(self.annotations)}/{len(self.current_clips)}"
     
     def export_csv(self):
-        """Export annotations to CSV"""
         if not self.annotations:
             return None, "No annotations to export."
         
@@ -166,6 +199,7 @@ class VideoEmotionAnnotator:
         return filename, f"Exported {len(self.annotations)} annotations to {filename}"
 
 annotator = VideoEmotionAnnotator()
+
 css = """
 #main_container {
     max-width: 1200px;
@@ -233,7 +267,6 @@ css = """
 }
 """
 
-# Create Gradio interface
 with gr.Blocks(css=css, title="Video Emotion Annotation Tool") as demo:
     gr.HTML("<div id='main_container'>")
     
@@ -255,19 +288,15 @@ with gr.Blocks(css=css, title="Video Emotion Annotation Tool") as demo:
             
             with gr.Row():
                 with gr.Column(scale=1):
-                    start_time_slider = gr.Slider(
-                        minimum=0,
-                        maximum=100,
-                        value=0,
-                        step=1,
-                        label="Start Time (seconds)",
-                        visible=True,
-                        interactive=True
-                    )
+                    gr.Markdown("**Start Time**")
+                    with gr.Row():
+                        start_minutes = gr.Number(label="Minutes", value=0, minimum=0, precision=0)
+                        start_seconds = gr.Number(label="Seconds", value=0, minimum=0, maximum=59, precision=0)
                 with gr.Column(scale=1):
                     interval = gr.Number(label="Clip Interval (seconds)", value=5, minimum=1)
                     process_minutes = gr.Number(label="Process Duration (minutes)", value=1, minimum=1)
             
+            # Hidden input that stores the actual start time in seconds
             start_time = gr.Number(value=0, visible=False)
             
             process_btn = gr.Button("🎬 Process Video", elem_id="process_btn", size="lg")
@@ -286,7 +315,7 @@ with gr.Blocks(css=css, title="Video Emotion Annotation Tool") as demo:
         
         with gr.Column(scale=1):
             has_emotion = gr.Checkbox(
-                label="NC",
+                label="NC (No Clear Emotion)",
                 value=False
             )
             
@@ -328,7 +357,6 @@ with gr.Blocks(css=css, title="Video Emotion Annotation Tool") as demo:
     
     gr.HTML("</div>")
     
-    # Event handlers
     def update_emotion_fields(nc_checked):
         return (
             gr.update(visible=not nc_checked),
@@ -339,31 +367,40 @@ with gr.Blocks(css=css, title="Video Emotion Annotation Tool") as demo:
     def on_video_upload(video_file):
         if video_file:
             duration, fps, frame_count = annotator.get_video_info(video_file)
+            max_minutes = int(duration // 60)
             return (
                 gr.update(value=video_file, visible=True),
-                gr.update(minimum=0, maximum=duration, value=0, step=1, visible=True),
+                gr.update(maximum=max_minutes),
+                gr.update(),
                 gr.update(minimum=1, maximum=max(1, int(duration // 60)), value=1, visible=True)
             )
         return (
             gr.update(visible=False),
-            gr.update(minimum=0, maximum=100, value=0, visible=True),
+            gr.update(maximum=999),
+            gr.update(),
             gr.update(minimum=1, maximum=1, value=1, visible=True)
         )
     
-    def on_start_time_change(start_time_val):
-        return start_time_val
+    def calculate_start_time(minutes, seconds):
+        return (minutes or 0) * 60 + (seconds or 0)
     
     has_emotion.change(update_emotion_fields, inputs=[has_emotion], outputs=[sadness_intensity, anger_intensity, pleasure_intensity])
     
     video_input.change(
         on_video_upload,
         inputs=[video_input],
-        outputs=[video_player, start_time_slider, process_minutes]
+        outputs=[video_player, start_minutes, start_seconds, process_minutes]
     )
     
-    start_time_slider.change(
-        on_start_time_change,
-        inputs=[start_time_slider],
+    start_minutes.change(
+        calculate_start_time,
+        inputs=[start_minutes, start_seconds],
+        outputs=[start_time]
+    )
+    
+    start_seconds.change(
+        calculate_start_time,
+        inputs=[start_minutes, start_seconds],
         outputs=[start_time]
     )
     
@@ -377,13 +414,13 @@ with gr.Blocks(css=css, title="Video Emotion Annotation Tool") as demo:
         video_path = annotator.load_clip(selected_clip)
         return (
             video_path,
-            False,  # has_emotion (NC checkbox) reset to False (unchecked)
-            0,      # sadness_intensity reset to 0
-            0,      # anger_intensity reset to 0
-            0,      # pleasure_intensity reset to 0
-            gr.update(visible=True),  # show sadness_intensity (since NC is unchecked)
-            gr.update(visible=True),  # show anger_intensity
-            gr.update(visible=True)   # show pleasure_intensity
+            False,
+            0,
+            0,
+            0,
+            gr.update(visible=True),
+            gr.update(visible=True),
+            gr.update(visible=True)
         )
     
     clip_selector.change(
