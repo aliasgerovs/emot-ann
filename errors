@@ -1,74 +1,28 @@
+PS C:\Users\team\Desktop\Annotation_Emotion\emot-ann> python3 .\video.py
+* Running on local URL:  http://127.0.0.1:7860
+* To create a public link, set `share=True` in `launch()`.
+Copied video to: C:\Users\team\AppData\Local\Temp\tmp8fg9wlu7\working_1023 Emotion Discussion Task.MP4
+Copied video to: C:\Users\team\AppData\Local\Temp\tmp8fg9wlu7\working_1023 Emotion Discussion Task.MP4
+Successfully wrote 149 frames to C:\Users\team\AppData\Local\Temp\tmp8fg9wlu7\clip_001.mp4
+Successfully wrote 149 frames to C:\Users\team\AppData\Local\Temp\tmp8fg9wlu7\clip_002.mp4
+Successfully wrote 149 frames to C:\Users\team\AppData\Local\Temp\tmp8fg9wlu7\clip_003.mp4
+Successfully wrote 149 frames to C:\Users\team\AppData\Local\Temp\tmp8fg9wlu7\clip_004.mp4
+Successfully wrote 149 frames to C:\Users\team\AppData\Local\Temp\tmp8fg9wlu7\clip_005.mp4
+Successfully wrote 149 frames to C:\Users\team\AppData\Local\Temp\tmp8fg9wlu7\clip_006.mp4
+Successfully wrote 149 frames to C:\Users\team\AppData\Local\Temp\tmp8fg9wlu7\clip_007.mp4
+Successfully wrote 149 frames to C:\Users\team\AppData\Local\Temp\tmp8fg9wlu7\clip_008.mp4
+Successfully wrote 149 frames to C:\Users\team\AppData\Local\Temp\tmp8fg9wlu7\clip_009.mp4
+Successfully wrote 149 frames to C:\Users\team\AppData\Local\Temp\tmp8fg9wlu7\clip_010.mp4
+Successfully wrote 149 frames to C:\Users\team\AppData\Local\Temp\tmp8fg9wlu7\clip_011.mp4
+Successfully wrote 149 frames to C:\Users\team\AppData\Local\Temp\tmp8fg9wlu7\clip_012.mp4
+Successfully wrote 10 frames to C:\Users\team\AppData\Local\Temp\tmp8fg9wlu7\clip_013.mp4
+Exception in callback _ProactorBasePipeTransport._call_connection_lost()
+handle: <Handle _ProactorBasePipeTransport._call_connection_lost()>
 Traceback (most recent call last):
-  File "C:\Users\team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\uvicorn\protocols\http\h11_impl.py", line 403, in run_asgi
-    result = await app(  # type: ignore[func-returns-value]
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-        self.scope, self.receive, self.send
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    )
-    ^
-  File "C:\Users\team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\uvicorn\middleware\proxy_headers.py", line 60, in __call__
-    return await self.app(scope, receive, send)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\fastapi\applications.py", line 1133, in __call__
-    await super().__call__(scope, receive, send)
-  File "C:\Users\team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\starlette\applications.py", line 113, in __call__
-    await self.middleware_stack(scope, receive, send)
-  File "C:\Users\team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\starlette\middleware\errors.py", line 186, in __call__
-    raise exc
-  File "C:\Users\team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\starlette\middleware\errors.py", line 164, in __call__
-    await self.app(scope, receive, _send)
-  File "C:\Users\team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\gradio\brotli_middleware.py", line 74, in __call__
-    return await self.app(scope, receive, send)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\gradio\route_utils.py", line 882, in __call__
-    await self.app(scope, receive, send)
-  File "C:\Users\team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
-    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
-  File "C:\Users\team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
-    raise exc
-  File "C:\Users\team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
-    await app(scope, receive, sender)
-  File "C:\Users\team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\fastapi\middleware\asyncexitstack.py", line 18, in __call__
-    await self.app(scope, receive, send)
-  File "C:\Users\team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\starlette\routing.py", line 716, in __call__
-    await self.middleware_stack(scope, receive, send)
-  File "C:\Users\team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\starlette\routing.py", line 736, in app    
-    await route.handle(scope, receive, send)
-  File "C:\Users\team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\starlette\routing.py", line 290, in handle 
-    await self.app(scope, receive, send)
-  File "C:\Users\team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\fastapi\routing.py", line 123, in app      
-    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
-  File "C:\Users\team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
-    raise exc
-  File "C:\Users\team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
-    await app(scope, receive, sender)
-  File "C:\Users\team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\fastapi\routing.py", line 110, in app      
-    await response(scope, receive, send)
-  File "C:\Users\team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\starlette\responses.py", line 381, in __call__
-    await self._handle_single_range(send, start, end, stat_result.st_size, send_header_only)
-  File "C:\Users\team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\starlette\responses.py", line 411, in _handle_single_range
-    async with await anyio.open_file(self.path, mode="rb") as file:
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\anyio\_core\_fileio.py", line 187, in open_file
-    fp = await to_thread.run_sync(
-         ^^^^^^^^^^^^^^^^^^^^^^^^^
-        open, file, mode, buffering, encoding, errors, newline, closefd, opener
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    )
-    ^
-  File "C:\Users\team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\anyio\to_thread.py", line 56, in run_sync  
-    return await get_async_backend().run_sync_in_worker_thread(
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-        func, args, abandon_on_cancel=abandon_on_cancel, limiter=limiter
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    )
-    ^
-  File "C:\Users\team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\anyio\_backends\_asyncio.py", line 2485, in run_sync_in_worker_thread
-    return await future
-           ^^^^^^^^^^^^
-  File "C:\Users\team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\anyio\_backends\_asyncio.py", line 976, in run
-    result = context.run(func, *args)
-PermissionError: [Errno 13] Permission denied: 'C:\\Users\\team\\AppData\\Local\\Temp\\gradio\\8f869c7939d2081a02a0d4bfd3f808887fe6832ed57acb5e47d9e7118ba71532\\1022 Emotion Discussion Task.MP4'
-[ WARN:0@14.547] global loadsave.cpp:275 cv::findDecoder imread_('C:\Users\team\AppData\Local\Temp\gradio\8f869c7939d2081a02a0d4bfd3f808887fe6832ed57acb5e47d9e7118ba71532\1022 Emotion Discussion Task.MP4'): can't open/read file: check file path/integrity
-[ WARN:0@14.691] global loadsave.cpp:275 cv::findDecoder imread_('C:\Users\team\AppData\Local\Temp\gradio\8f869c7939d2081a02a0d4bfd3f808887fe6832ed57acb5e47d9e7118ba71532\1022 Emotion Discussion Task.MP4'): can't open/read file: check file path/integrity
-[ WARN:0@14.796] global loadsave.cpp:275 cv::findDecoder imread_('C:\Users\team\AppData\Local\Temp\gradio\8f869c7939d2081a02a0d4bfd3f808887fe6832ed57acb5e47d9e7118ba71532\1022 Emotion Discussion Task.MP4'): can't open/read file: check file path/integrity
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\asyncio\events.py", line 89, in _run
+    self._context.run(self._callback, *self._args)
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\asyncio\proactor_events.py", line 165, in _call_connection_lost
+    self._sock.shutdown(socket.SHUT_RDWR)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+ConnectionResetError: [WinError 10054] An existing connection was forcibly closed by the remote host
