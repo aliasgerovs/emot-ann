@@ -448,4 +448,7 @@ with gr.Blocks(css=css, title="Video Emotion Annotation Tool") as demo:
     )
 
 if __name__ == "__main__":
+    os.environ['GRADIO_TEMP_DIR'] = os.path.join(os.getcwd(), 'gradio_temp')
+    if not os.path.exists(os.environ['GRADIO_TEMP_DIR']):
+        os.makedirs(os.environ['GRADIO_TEMP_DIR'])
     demo.launch(share=True)
