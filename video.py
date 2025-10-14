@@ -9,7 +9,17 @@ import time
 
 class VideoEmotionAnnotator:
     def __init__(self):
-        self.temp_dir = tempfile.mkdtemp()
+        # Use Gradio's temp directory if available, otherwise create our own
+        try:
+            import gradio as gr
+            if hasattr(gr, 'processing_utils') and hasattr(gr.processing_utils, 'get_temp_dir'):
+                self.temp_dir = gr.processing_utils.get_temp_dir()
+            else:
+                self.temp_dir = tempfile.mkdtemp()
+        except:
+            self.temp_dir = tempfile.mkdtemp()
+        
+        print(f"Using temp directory: {self.temp_dir}")
         self.annotations = []
         self.current_clips = []
         self.participant_id = ""
@@ -160,13 +170,21 @@ class VideoEmotionAnnotator:
             success = self.create_clip(cap, frame_start, frame_end, clip_path, fps)
             
             if success and os.path.exists(clip_path):
-                self.current_clips.append({
-                    'path': clip_path,
-                    'number': clip_num,
-                    'start_time': frame_start/fps,
-                    'end_time': frame_end/fps
-                })
-                clip_num += 1
+                # Verify the clip is readable
+                test_cap = cv2.VideoCapture(clip_path)
+                if test_cap.isOpened():
+                    test_cap.release()
+                    self.current_clips.append({
+                        'path': clip_path,
+                        'number': clip_num,
+                        'start_time': frame_start/fps,
+                        'end_time': frame_end/fps
+                    })
+                    print(f"Clip {clip_num} created and verified: {clip_path}")
+                    clip_num += 1
+                else:
+                    print(f"Warning: Clip {clip_num} was created but cannot be opened: {clip_path}")
+                    test_cap.release()
         
         cap.release()
         cv2.destroyAllWindows()
@@ -242,9 +260,16 @@ class VideoEmotionAnnotator:
             
             for clip in self.current_clips:
                 if clip['number'] == clip_num:
-                    return clip['path']
-        except (ValueError, IndexError):
-            pass
+                    # Return the path - Gradio will handle it
+                    clip_path = clip['path']
+                    if os.path.exists(clip_path):
+                        print(f"Loading clip: {clip_path}")
+                        return clip_path
+                    else:
+                        print(f"Clip not found: {clip_path}")
+                        return None
+        except (ValueError, IndexError) as e:
+            print(f"Error parsing clip selection: {e}")
         return None
     
     def save_annotation(self, selected_clip, has_emotion, sadness_intensity, anger_intensity, pleasure_intensity, task_type, annotator_name):
@@ -274,10 +299,10 @@ class VideoEmotionAnnotator:
             'start_time': clip_data['start_time'],
             'end_time': clip_data['end_time'],
             'duration': clip_data['end_time'] - clip_data['start_time'],
-            'has_emotion': has_emotion,
-            'sadness_intensity': 0 if has_emotion else sadness_intensity,
-            'anger_intensity': 0 if has_emotion else anger_intensity,
-            'pleasure_intensity': 0 if has_emotion else pleasure_intensity,
+            'no_clear_emotion': has_emotion,
+            'sadness_intensity': sadness_intensity if not has_emotion else 0,
+            'anger_intensity': anger_intensity if not has_emotion else 0,
+            'pleasure_intensity': pleasure_intensity if not has_emotion else 0,
             'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         }
         
@@ -513,17 +538,26 @@ with gr.Blocks(css=css, title="Video Emotion Annotation Tool") as demo:
     )
     
     def load_clip_and_reset_filters(selected_clip):
+        if not selected_clip:
+            return (None, False, 0, 0, 0, gr.update(visible=True), gr.update(visible=True), gr.update(visible=True))
+        
         video_path = annotator.load_clip(selected_clip)
-        return (
-            video_path,
-            False,
-            0,
-            0,
-            0,
-            gr.update(visible=True),
-            gr.update(visible=True),
-            gr.update(visible=True)
-        )
+        print(f"Clip path to load: {video_path}")
+        
+        if video_path and os.path.exists(video_path):
+            return (
+                video_path,
+                False,
+                0,
+                0,
+                0,
+                gr.update(visible=True),
+                gr.update(visible=True),
+                gr.update(visible=True)
+            )
+        else:
+            print(f"Could not load clip, path exists: {os.path.exists(video_path) if video_path else 'No path'}")
+            return (None, False, 0, 0, 0, gr.update(visible=True), gr.update(visible=True), gr.update(visible=True))
     
     clip_selector.change(
         load_clip_and_reset_filters,
@@ -550,4 +584,4 @@ with gr.Blocks(css=css, title="Video Emotion Annotation Tool") as demo:
     )
 
 if __name__ == "__main__":
-    demo.launch()
+    demo.launch(share=True)
