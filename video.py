@@ -9,28 +9,36 @@ import time
 
 class VideoEmotionAnnotator:
     def __init__(self):
-        # Use Gradio's temp directory if available, otherwise create our own
-        try:
-            import gradio as gr
-            if hasattr(gr, 'processing_utils') and hasattr(gr.processing_utils, 'get_temp_dir'):
-                self.temp_dir = gr.processing_utils.get_temp_dir()
-            else:
-                self.temp_dir = tempfile.mkdtemp()
-        except:
-            self.temp_dir = tempfile.mkdtemp()
+        # Create clips directory in current working directory for reliability
+        self.clips_dir = os.path.join(os.getcwd(), 'annotation_clips')
+        self.working_dir = os.path.join(os.getcwd(), 'annotation_working')
         
-        print(f"Using temp directory: {self.temp_dir}")
+        # Create directories if they don't exist
+        os.makedirs(self.clips_dir, exist_ok=True)
+        os.makedirs(self.working_dir, exist_ok=True)
+        
+        print(f"Using clips directory: {self.clips_dir}")
+        print(f"Using working directory: {self.working_dir}")
+        
         self.annotations = []
         self.current_clips = []
         self.participant_id = ""
         self.working_video_path = None
         
     def __del__(self):
+        # Don't delete the clips directory - keep it for user access
+        # Only clean up working files
         try:
-            if hasattr(self, 'temp_dir') and os.path.exists(self.temp_dir):
-                shutil.rmtree(self.temp_dir, ignore_errors=True)
+            if hasattr(self, 'working_dir') and os.path.exists(self.working_dir):
+                for file in os.listdir(self.working_dir):
+                    try:
+                        file_path = os.path.join(self.working_dir, file)
+                        if os.path.isfile(file_path):
+                            os.remove(file_path)
+                    except:
+                        pass
         except Exception as e:
-            print(f"Error cleaning up temp files: {str(e)}")
+            print(f"Error cleaning up working files: {str(e)}")
     
     def format_time(self, seconds):
         minutes = int(seconds // 60)
@@ -45,14 +53,14 @@ class VideoEmotionAnnotator:
         try:
             # Create a working copy
             filename = os.path.basename(video_path)
-            working_path = os.path.join(self.temp_dir, f"working_{filename}")
+            working_path = os.path.join(self.working_dir, f"working_{filename}")
             
             # Remove old working file if exists
             if os.path.exists(working_path):
                 try:
                     os.remove(working_path)
                 except:
-                    working_path = os.path.join(self.temp_dir, f"working_{int(time.time())}_{filename}")
+                    working_path = os.path.join(self.working_dir, f"working_{int(time.time())}_{filename}")
             
             shutil.copy2(video_path, working_path)
             print(f"Copied video to: {working_path}")
@@ -166,7 +174,10 @@ class VideoEmotionAnnotator:
         for frame_start in range(start_frame, end_frame, interval_frames):
             frame_end = min(frame_start + interval_frames, end_frame)
             
-            clip_path = os.path.join(self.temp_dir, f"clip_{clip_num:03d}.mp4")
+            # Use participant ID in filename for organization
+            clip_filename = f"{self.participant_id}_clip_{clip_num:03d}.mp4"
+            clip_path = os.path.join(self.clips_dir, clip_filename)
+            
             success = self.create_clip(cap, frame_start, frame_end, clip_path, fps)
             
             if success and os.path.exists(clip_path):
@@ -584,4 +595,4 @@ with gr.Blocks(css=css, title="Video Emotion Annotation Tool") as demo:
     )
 
 if __name__ == "__main__":
-    demo.launch(share=True)
+    demo.launch()
