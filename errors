@@ -1,0 +1,58 @@
+PS C:\Users\team\Desktop\Annotation_Emotion\emot-ann> python3 .\video.py
+* Running on local URL:  http://127.0.0.1:7860
+
+Could not create share link. Please check your internet connection or our status page: https://status.gradio.app.
+Traceback (most recent call last):
+  File "C:\Users\team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\gradio\queueing.py", line 759, in process_events
+    response = await route_utils.call_process_api(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "C:\Users\team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\gradio\route_utils.py", line 354, in call_process_api
+    output = await app.get_blocks().process_api(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<11 lines>...
+    )
+    ^
+  File "C:\Users\team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\gradio\blocks.py", line 2112, in process_api
+    inputs = await self.preprocess_data(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        block_fn, inputs, state, explicit_call
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\gradio\blocks.py", line 1754, in preprocess_data
+    inputs_cached = await processing_utils.async_move_files_to_cache(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "C:\Users\team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\gradio\processing_utils.py", line 594, in async_move_files_to_cache
+    return await client_utils.async_traverse(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        data, _move_to_cache, client_utils.is_file_obj_with_meta
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\gradio_client\utils.py", line 1197, in async_traverse
+    return await func(json_obj)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\gradio\processing_utils.py", line 567, in _move_to_cache
+    temp_file_path = await block.async_move_resource_to_block_cache(
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        payload.path
+        ^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\gradio\blocks.py", line 349, in async_move_resource_to_block_cache
+    temp_file_path = processing_utils.save_file_to_cache(
+        url_or_file_path, cache_dir=self.GRADIO_CACHE
+    )
+  File "C:\Users\team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\gradio\processing_utils.py", line 224, in save_file_to_cache
+    temp_dir = hash_file(file_path)
+  File "C:\Users\team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\gradio\processing_utils.py", line 129, in hash_file
+    with open(file_path, "rb") as f:
+         ~~~~^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 13] Permission denied: 'C:\\Users\\team\\Desktop\\Annotation_Emotion\\emot-ann\\gradio_temp\\8f869c7939d2081a02a0d4bfd3f808887fe6832ed57acb5e47d9e7118ba71532\\1022 Emotion Discussion Task.MP4'
+Keyboard interruption in main thread... closing server.
