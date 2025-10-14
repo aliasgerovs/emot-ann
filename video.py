@@ -37,6 +37,13 @@ class VideoEmotionAnnotator:
             return "Please upload a video and provide a participant ID.", gr.update(choices=[])
         self.participant_id = participant_id
         
+        for clip in self.current_clips:
+            try:
+                if os.path.exists(clip['path']):
+                    os.remove(clip['path'])
+            except Exception as e:
+                print(f"Could not remove old clip {clip['path']}: {str(e)}")
+        
         duration, fps, frame_count = self.get_video_info(video_file)
         requested_seconds = (process_minutes or 0) * 60
         if requested_seconds <= 0:
@@ -72,6 +79,8 @@ class VideoEmotionAnnotator:
                 clip_num += 1
         
         cap.release()
+        cv2.destroyAllWindows()
+        
         if not self.current_clips:
             return "No clips were created. Please check your parameters.", gr.update(choices=[])
         
@@ -130,10 +139,11 @@ class VideoEmotionAnnotator:
         except Exception as e:
             print(f"Error creating clip: {str(e)}")
         finally:
-            if cap is not None:
-                cap.release()
             if out is not None:
                 out.release()
+            if cap is not None:
+                cap.release()
+            cv2.destroyAllWindows()
             cv2.waitKey(1)
     
     def load_clip(self, selected_clip):
