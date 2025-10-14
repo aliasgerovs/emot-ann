@@ -10,9 +10,12 @@ class VideoEmotionAnnotator:
     def __del__(self):
         try:
             if hasattr(self, 'temp_dir') and os.path.exists(self.temp_dir):
-                shutil.rmtree(self.temp_dir)
+                for file in os.listdir(self.temp_dir):
+                    file_path = os.path.join(self.temp_dir, file)
+                    if os.path.isfile(file_path):
+                        os.remove(file_path)
         except Exception as e:
-            print(f"Error cleaning up temp directory: {str(e)}")
+            print(f"Error cleaning up temp files: {str(e)}")
     
     def format_time(self, seconds):
         minutes = int(seconds // 60)
