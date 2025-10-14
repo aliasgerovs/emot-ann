@@ -13,6 +13,7 @@ class VideoEmotionAnnotator:
         self.annotations = []
         self.current_clips = []
         self.participant_id = ""
+        self.working_video_path = None
         
     def __del__(self):
         try:
@@ -26,15 +27,43 @@ class VideoEmotionAnnotator:
         secs = int(seconds % 60)
         return f"{minutes:02d}:{secs:02d}"
     
+    def copy_video_to_working_dir(self, video_path):
+        """Copy the video to a working directory to avoid file locking issues"""
+        if not video_path or not os.path.exists(video_path):
+            return None
+        
+        try:
+            # Create a working copy
+            filename = os.path.basename(video_path)
+            working_path = os.path.join(self.temp_dir, f"working_{filename}")
+            
+            # Remove old working file if exists
+            if os.path.exists(working_path):
+                try:
+                    os.remove(working_path)
+                except:
+                    working_path = os.path.join(self.temp_dir, f"working_{int(time.time())}_{filename}")
+            
+            shutil.copy2(video_path, working_path)
+            print(f"Copied video to: {working_path}")
+            return working_path
+        except Exception as e:
+            print(f"Error copying video: {e}")
+            return None
+    
     def get_video_info(self, video_path):
         if not video_path:
             return 0, 0, 0
         
-        # Ensure file is accessible by waiting a moment
+        # Copy to working directory first
+        working_path = self.copy_video_to_working_dir(video_path)
+        if not working_path:
+            return 0, 0, 0
+        
         max_retries = 3
         for attempt in range(max_retries):
             try:
-                cap = cv2.VideoCapture(video_path)
+                cap = cv2.VideoCapture(working_path)
                 if cap.isOpened():
                     fps = cap.get(cv2.CAP_PROP_FPS)
                     frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -49,7 +78,8 @@ class VideoEmotionAnnotator:
                     time.sleep(0.5)
             finally:
                 try:
-                    cap.release()
+                    if 'cap' in locals():
+                        cap.release()
                     cv2.destroyAllWindows()
                 except:
                     pass
@@ -63,8 +93,10 @@ class VideoEmotionAnnotator:
         # Handle Gradio file object
         if hasattr(video_file, 'name'):
             video_path = video_file.name
-        else:
+        elif isinstance(video_file, str):
             video_path = video_file
+        else:
+            return "Invalid video file.", gr.update(choices=[])
             
         self.participant_id = participant_id
         
@@ -76,10 +108,24 @@ class VideoEmotionAnnotator:
             except Exception as e:
                 print(f"Could not remove old clip {clip['path']}: {str(e)}")
         
-        # Wait to ensure file is fully written and closed
-        time.sleep(0.3)
+        # Copy video to working directory
+        self.working_video_path = self.copy_video_to_working_dir(video_path)
+        if not self.working_video_path:
+            return "Failed to prepare video file. Please try again.", gr.update(choices=[])
         
-        duration, fps, frame_count = self.get_video_info(video_path)
+        # Wait to ensure file is ready
+        time.sleep(0.2)
+        
+        # Get video info
+        cap = cv2.VideoCapture(self.working_video_path)
+        if not cap.isOpened():
+            return "Failed to open video file.", gr.update(choices=[])
+        
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        duration = frame_count / fps if fps > 0 else 0
+        cap.release()
+        cv2.destroyAllWindows()
         
         if duration == 0:
             return "Failed to read video file. Please try again.", gr.update(choices=[])
@@ -96,7 +142,7 @@ class VideoEmotionAnnotator:
         self.annotations = []
         
         # Open video once and process all clips
-        cap = cv2.VideoCapture(video_path)
+        cap = cv2.VideoCapture(self.working_video_path)
         if not cap.isOpened():
             return "Failed to open video file.", gr.update(choices=[])
             
@@ -302,25 +348,37 @@ css = """
 
 def on_video_upload(video_file):
     if video_file:
-        # Give Gradio time to fully process and close the file
-        time.sleep(0.2)
-        
         # Handle Gradio file object
         if hasattr(video_file, 'name'):
             video_path = video_file.name
-        else:
+        elif isinstance(video_file, str):
             video_path = video_file
-            
-        duration, fps, frame_count = annotator.get_video_info(video_path)
+        else:
+            return (gr.update(visible=False), gr.update(maximum=999), gr.update(), gr.update(minimum=1, maximum=1, value=1, visible=True))
         
-        if duration > 0:
-            max_minutes = int(duration // 60)
-            return (
-                gr.update(value=video_path, visible=True),
-                gr.update(maximum=max_minutes),
-                gr.update(),
-                gr.update(minimum=1, maximum=max(1, int(duration // 60)), value=1, visible=True)
-            )
+        # Copy to working directory and get info
+        working_path = annotator.copy_video_to_working_dir(video_path)
+        if not working_path:
+            return (gr.update(visible=False), gr.update(maximum=999), gr.update(), gr.update(minimum=1, maximum=1, value=1, visible=True))
+        
+        time.sleep(0.2)
+        
+        cap = cv2.VideoCapture(working_path)
+        if cap.isOpened():
+            fps = cap.get(cv2.CAP_PROP_FPS)
+            frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            duration = frame_count / fps if fps > 0 else 0
+            cap.release()
+            cv2.destroyAllWindows()
+            
+            if duration > 0:
+                max_minutes = int(duration // 60)
+                return (
+                    gr.update(visible=True),
+                    gr.update(maximum=max_minutes),
+                    gr.update(),
+                    gr.update(minimum=1, maximum=max(1, int(duration // 60)), value=1, visible=True)
+                )
     
     return (
         gr.update(visible=False),
@@ -346,6 +404,8 @@ with gr.Blocks(css=css, title="Video Emotion Annotation Tool") as demo:
                 task_type = gr.Dropdown(label="Task Type", choices=["Traditional", "Digital"], value="Traditional")
                 annotator_name = gr.Textbox(label="Annotator Name", placeholder="Enter annotator name")
             
+            upload_status = gr.Markdown("", visible=True)
+            
             with gr.Row():
                 with gr.Column(scale=1):
                     gr.Markdown("**Start Time**")
@@ -370,7 +430,7 @@ with gr.Blocks(css=css, title="Video Emotion Annotation Tool") as demo:
     with gr.Row():
         with gr.Column(scale=2):
             clip_selector = gr.Dropdown(label="Select Clip", choices=[], interactive=True)
-            clip_video = gr.Video(label="Current Clip", height=300)
+            clip_video = gr.Video(label="Current Clip", height=300, autoplay=False)
         
         with gr.Column(scale=1):
             has_emotion = gr.Checkbox(
@@ -431,7 +491,7 @@ with gr.Blocks(css=css, title="Video Emotion Annotation Tool") as demo:
     video_input.upload(
         on_video_upload,
         inputs=[video_input],
-        outputs=[video_input, start_minutes, start_seconds, process_minutes]
+        outputs=[upload_status, start_minutes, start_seconds, process_minutes]
     )
     
     start_minutes.change(
