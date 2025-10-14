@@ -1,9 +1,3 @@
-PS C:\Users\team\Desktop\Annotation_Emotion\emot-ann> python3 .\video.py
-* Running on local URL:  http://127.0.0.1:7860
-
-Could not create share link. Please check your internet connection or our status page: https://status.gradio.app.
-[ WARN:0@13.705] global loadsave.cpp:275 cv::findDecoder imread_('C:\Users\team\AppData\Local\Temp\gradio\8f869c7939d2081a02a0d4bfd3f808887fe6832ed57acb5e47d9e7118ba71532\1022 Emotion Discussion Task.MP4'): can't open/read file: check file path/integrity
-ERROR:    Exception in ASGI application
 Traceback (most recent call last):
   File "C:\Users\team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\uvicorn\protocols\http\h11_impl.py", line 403, in run_asgi
     result = await app(  # type: ignore[func-returns-value]
@@ -75,3 +69,6 @@ Traceback (most recent call last):
   File "C:\Users\team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\anyio\_backends\_asyncio.py", line 976, in run
     result = context.run(func, *args)
 PermissionError: [Errno 13] Permission denied: 'C:\\Users\\team\\AppData\\Local\\Temp\\gradio\\8f869c7939d2081a02a0d4bfd3f808887fe6832ed57acb5e47d9e7118ba71532\\1022 Emotion Discussion Task.MP4'
+[ WARN:0@14.547] global loadsave.cpp:275 cv::findDecoder imread_('C:\Users\team\AppData\Local\Temp\gradio\8f869c7939d2081a02a0d4bfd3f808887fe6832ed57acb5e47d9e7118ba71532\1022 Emotion Discussion Task.MP4'): can't open/read file: check file path/integrity
+[ WARN:0@14.691] global loadsave.cpp:275 cv::findDecoder imread_('C:\Users\team\AppData\Local\Temp\gradio\8f869c7939d2081a02a0d4bfd3f808887fe6832ed57acb5e47d9e7118ba71532\1022 Emotion Discussion Task.MP4'): can't open/read file: check file path/integrity
+[ WARN:0@14.796] global loadsave.cpp:275 cv::findDecoder imread_('C:\Users\team\AppData\Local\Temp\gradio\8f869c7939d2081a02a0d4bfd3f808887fe6832ed57acb5e47d9e7118ba71532\1022 Emotion Discussion Task.MP4'): can't open/read file: check file path/integrity
