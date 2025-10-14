@@ -271,11 +271,11 @@ class VideoEmotionAnnotator:
             
             for clip in self.current_clips:
                 if clip['number'] == clip_num:
-                    # Return the path - Gradio will handle it
                     clip_path = clip['path']
                     if os.path.exists(clip_path):
                         print(f"Loading clip: {clip_path}")
-                        return clip_path
+                        # Return absolute path for Gradio
+                        return os.path.abspath(clip_path)
                     else:
                         print(f"Clip not found: {clip_path}")
                         return None
@@ -556,16 +556,28 @@ with gr.Blocks(css=css, title="Video Emotion Annotation Tool") as demo:
         print(f"Clip path to load: {video_path}")
         
         if video_path and os.path.exists(video_path):
-            return (
-                video_path,
-                False,
-                0,
-                0,
-                0,
-                gr.update(visible=True),
-                gr.update(visible=True),
-                gr.update(visible=True)
-            )
+            # Copy to a temp location that Gradio can access
+            import tempfile
+            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4', dir=tempfile.gettempdir())
+            temp_path = temp_file.name
+            temp_file.close()
+            
+            try:
+                shutil.copy2(video_path, temp_path)
+                print(f"Copied clip to temp location: {temp_path}")
+                return (
+                    temp_path,
+                    False,
+                    0,
+                    0,
+                    0,
+                    gr.update(visible=True),
+                    gr.update(visible=True),
+                    gr.update(visible=True)
+                )
+            except Exception as e:
+                print(f"Error copying clip: {e}")
+                return (None, False, 0, 0, 0, gr.update(visible=True), gr.update(visible=True), gr.update(visible=True))
         else:
             print(f"Could not load clip, path exists: {os.path.exists(video_path) if video_path else 'No path'}")
             return (None, False, 0, 0, 0, gr.update(visible=True), gr.update(visible=True), gr.update(visible=True))
@@ -574,7 +586,8 @@ with gr.Blocks(css=css, title="Video Emotion Annotation Tool") as demo:
         load_clip_and_reset_filters,
         inputs=[clip_selector],
         outputs=[clip_video, has_emotion, sadness_intensity, anger_intensity, pleasure_intensity, 
-                sadness_intensity, anger_intensity, pleasure_intensity]
+                sadness_intensity, anger_intensity, pleasure_intensity],
+        show_progress="hidden"
     )
     
     save_btn.click(
@@ -595,4 +608,12 @@ with gr.Blocks(css=css, title="Video Emotion Annotation Tool") as demo:
     )
 
 if __name__ == "__main__":
-    demo.launch()
+    # Ensure clips directory exists before launch
+    os.makedirs(annotator.clips_dir, exist_ok=True)
+    os.makedirs(annotator.working_dir, exist_ok=True)
+    
+    # Launch with allowed paths
+    demo.launch(
+        share=True,
+        allowed_paths=[annotator.clips_dir, annotator.working_dir]
+    )
