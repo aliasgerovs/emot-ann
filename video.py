@@ -5,6 +5,7 @@ import pandas as pd
 from datetime import datetime
 import tempfile
 import shutil
+import time
 
 class VideoEmotionAnnotator:
     def __init__(self):
@@ -25,20 +26,46 @@ class VideoEmotionAnnotator:
         secs = int(seconds % 60)
         return f"{minutes:02d}:{secs:02d}"
     
-    def get_video_info(self, video_file):
-        if not video_file:
+    def get_video_info(self, video_path):
+        if not video_path:
             return 0, 0, 0
-        cap = cv2.VideoCapture(video_file)
-        fps = cap.get(cv2.CAP_PROP_FPS)
-        frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-        duration = frame_count / fps if fps > 0 else 0
-        cap.release()
-        cv2.destroyAllWindows()
-        return duration, fps, frame_count
+        
+        # Ensure file is accessible by waiting a moment
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                cap = cv2.VideoCapture(video_path)
+                if cap.isOpened():
+                    fps = cap.get(cv2.CAP_PROP_FPS)
+                    frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+                    duration = frame_count / fps if fps > 0 else 0
+                    cap.release()
+                    cv2.destroyAllWindows()
+                    cv2.waitKey(1)
+                    return duration, fps, frame_count
+            except Exception as e:
+                print(f"Attempt {attempt + 1} failed: {e}")
+                if attempt < max_retries - 1:
+                    time.sleep(0.5)
+            finally:
+                try:
+                    cap.release()
+                    cv2.destroyAllWindows()
+                except:
+                    pass
+        
+        return 0, 0, 0
 
     def process_video(self, video_file, participant_id, start_time, interval, process_minutes):
         if not video_file or not participant_id:
             return "Please upload a video and provide a participant ID.", gr.update(choices=[])
+        
+        # Handle Gradio file object
+        if hasattr(video_file, 'name'):
+            video_path = video_file.name
+        else:
+            video_path = video_file
+            
         self.participant_id = participant_id
         
         # Clean up old clips
@@ -49,7 +76,14 @@ class VideoEmotionAnnotator:
             except Exception as e:
                 print(f"Could not remove old clip {clip['path']}: {str(e)}")
         
-        duration, fps, frame_count = self.get_video_info(video_file)
+        # Wait to ensure file is fully written and closed
+        time.sleep(0.3)
+        
+        duration, fps, frame_count = self.get_video_info(video_path)
+        
+        if duration == 0:
+            return "Failed to read video file. Please try again.", gr.update(choices=[])
+        
         requested_seconds = (process_minutes or 0) * 60
         if requested_seconds <= 0:
             requested_seconds = 240
@@ -62,7 +96,7 @@ class VideoEmotionAnnotator:
         self.annotations = []
         
         # Open video once and process all clips
-        cap = cv2.VideoCapture(video_file)
+        cap = cv2.VideoCapture(video_path)
         if not cap.isOpened():
             return "Failed to open video file.", gr.update(choices=[])
             
@@ -90,6 +124,7 @@ class VideoEmotionAnnotator:
         
         cap.release()
         cv2.destroyAllWindows()
+        cv2.waitKey(1)
         
         if not self.current_clips:
             return "No clips were created. Please check your parameters.", gr.update(choices=[])
@@ -107,11 +142,11 @@ class VideoEmotionAnnotator:
             height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
             
             # Try different codecs
-            fourcc = cv2.VideoWriter_fourcc(*'avc1')
+            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
             out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
             
             if not out.isOpened():
-                fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+                fourcc = cv2.VideoWriter_fourcc(*'avc1')
                 out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
             
             if not out.isOpened():
@@ -265,6 +300,35 @@ css = """
 }
 """
 
+def on_video_upload(video_file):
+    if video_file:
+        # Give Gradio time to fully process and close the file
+        time.sleep(0.2)
+        
+        # Handle Gradio file object
+        if hasattr(video_file, 'name'):
+            video_path = video_file.name
+        else:
+            video_path = video_file
+            
+        duration, fps, frame_count = annotator.get_video_info(video_path)
+        
+        if duration > 0:
+            max_minutes = int(duration // 60)
+            return (
+                gr.update(value=video_path, visible=True),
+                gr.update(maximum=max_minutes),
+                gr.update(),
+                gr.update(minimum=1, maximum=max(1, int(duration // 60)), value=1, visible=True)
+            )
+    
+    return (
+        gr.update(visible=False),
+        gr.update(maximum=999),
+        gr.update(),
+        gr.update(minimum=1, maximum=1, value=1, visible=True)
+    )
+
 with gr.Blocks(css=css, title="Video Emotion Annotation Tool") as demo:
     gr.HTML("<div id='main_container'>")
     
@@ -275,14 +339,12 @@ with gr.Blocks(css=css, title="Video Emotion Annotation Tool") as demo:
             gr.HTML("<div class='step-header'>📁 Step 1: Upload & Configure</div>")
             
             with gr.Row():
-                video_input = gr.File(label="Upload Video", file_types=[".mp4", ".avi", ".mov", ".mkv"])
+                video_input = gr.Video(label="Upload Video", sources=["upload"])
                 participant_id = gr.Textbox(label="Participant ID", placeholder="Enter participant identifier")
             
             with gr.Row():
                 task_type = gr.Dropdown(label="Task Type", choices=["Traditional", "Digital"], value="Traditional")
                 annotator_name = gr.Textbox(label="Annotator Name", placeholder="Enter annotator name")
-            
-            video_player = gr.Video(label="Video Preview", height=300, visible=False, elem_classes="video-preview")
             
             with gr.Row():
                 with gr.Column(scale=1):
@@ -361,32 +423,15 @@ with gr.Blocks(css=css, title="Video Emotion Annotation Tool") as demo:
             gr.update(visible=not nc_checked)
         )
     
-    def on_video_upload(video_file):
-        if video_file:
-            duration, fps, frame_count = annotator.get_video_info(video_file)
-            max_minutes = int(duration // 60)
-            return (
-                gr.update(value=video_file, visible=True),
-                gr.update(maximum=max_minutes),
-                gr.update(),
-                gr.update(minimum=1, maximum=max(1, int(duration // 60)), value=1, visible=True)
-            )
-        return (
-            gr.update(visible=False),
-            gr.update(maximum=999),
-            gr.update(),
-            gr.update(minimum=1, maximum=1, value=1, visible=True)
-        )
-    
     def calculate_start_time(minutes, seconds):
         return (minutes or 0) * 60 + (seconds or 0)
     
     has_emotion.change(update_emotion_fields, inputs=[has_emotion], outputs=[sadness_intensity, anger_intensity, pleasure_intensity])
     
-    video_input.change(
+    video_input.upload(
         on_video_upload,
         inputs=[video_input],
-        outputs=[video_player, start_minutes, start_seconds, process_minutes]
+        outputs=[video_input, start_minutes, start_seconds, process_minutes]
     )
     
     start_minutes.change(
@@ -445,4 +490,4 @@ with gr.Blocks(css=css, title="Video Emotion Annotation Tool") as demo:
     )
 
 if __name__ == "__main__":
-    demo.launch(share=True)
+    demo.launch()
