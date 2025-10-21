@@ -547,7 +547,11 @@ with gr.Blocks(css=css, title="Video Emotion Annotation Tool") as demo:
             gr.HTML("<div class='step-header'>📁 Step 1: Upload & Configure</div>")
             
             with gr.Row():
-                video_input = gr.Video(label="Upload Video", sources=["upload"])
+                video_input = gr.Video(
+                    label="Upload Video", 
+                    sources=["upload"],
+                    include_audio=True
+                )
                 participant_id = gr.Textbox(label="Participant ID", placeholder="Enter participant identifier")
             
             with gr.Row():
@@ -674,14 +678,23 @@ with gr.Blocks(css=css, title="Video Emotion Annotation Tool") as demo:
 if __name__ == "__main__":
     import socket
     
+    # Set environment variable to force Gradio to use current directory
+    os.environ['GRADIO_TEMP_DIR'] = os.path.join(os.getcwd(), 'gradio_temp')
+    gradio_temp_dir = os.environ['GRADIO_TEMP_DIR']
+    
     os.makedirs(annotator.clips_dir, exist_ok=True)
     os.makedirs(annotator.working_dir, exist_ok=True)
+    os.makedirs(gradio_temp_dir, exist_ok=True)
     
     clips_abs = os.path.abspath(annotator.clips_dir)
     working_abs = os.path.abspath(annotator.working_dir)
+    gradio_temp_abs = os.path.abspath(gradio_temp_dir)
+    cwd_abs = os.path.abspath(os.getcwd())
     
-    print(f"\nClips directory (absolute): {clips_abs}")
-    print(f"Working directory (absolute): {working_abs}")
+    print(f"\nCurrent working directory: {cwd_abs}")
+    print(f"Clips directory: {clips_abs}")
+    print(f"Working directory: {working_abs}")
+    print(f"Gradio temp directory: {gradio_temp_abs}")
     
     def get_local_ip():
         try:
@@ -709,7 +722,7 @@ if __name__ == "__main__":
         print("Attempting to launch...")
         demo.launch(
             share=True,
-            allowed_paths=[clips_abs, working_abs, os.getcwd()],
+            allowed_paths=[clips_abs, working_abs, gradio_temp_abs, cwd_abs],
             server_name="0.0.0.0",
             server_port=port,
             show_error=True,
@@ -727,7 +740,7 @@ if __name__ == "__main__":
         try:
             demo.launch(
                 share=False,
-                allowed_paths=[clips_abs, working_abs, os.getcwd()],
+                allowed_paths=[clips_abs, working_abs, gradio_temp_abs, cwd_abs],
                 server_name="0.0.0.0",
                 server_port=port,
                 show_error=True,
