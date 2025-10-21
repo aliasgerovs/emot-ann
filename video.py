@@ -7,6 +7,7 @@ import tempfile
 import shutil
 import time
 import gc
+import subprocess
 from contextlib import contextmanager
 
 class VideoEmotionAnnotator:
@@ -248,6 +249,49 @@ class VideoEmotionAnnotator:
         return f"{time_range_msg}\n\nCreated {len(self.current_clips)} clips successfully!", gr.update(choices=clip_options, value=clip_options[0] if clip_options else None)
     
     def create_clip(self, cap, start_frame, end_frame, output_path, fps):
+        try:
+            start_time_sec = start_frame / fps
+            duration_sec = (end_frame - start_frame) / fps
+            
+            # Use ffmpeg-python if available, otherwise fall back to subprocess
+            try:
+                import ffmpeg
+                (
+                    ffmpeg
+                    .input(self.working_video_path, ss=start_time_sec, t=duration_sec)
+                    .output(output_path, c='copy', loglevel='error')
+                    .overwrite_output()
+                    .run()
+                )
+                print(f"Successfully created clip using ffmpeg: {output_path}")
+                return True
+            except ImportError:
+                # Fall back to subprocess if ffmpeg-python not installed
+                import subprocess
+                cmd = [
+                    'ffmpeg',
+                    '-ss', str(start_time_sec),
+                    '-i', self.working_video_path,
+                    '-t', str(duration_sec),
+                    '-c', 'copy',
+                    '-y',
+                    output_path,
+                    '-loglevel', 'error'
+                ]
+                
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                if result.returncode == 0:
+                    print(f"Successfully created clip using ffmpeg subprocess: {output_path}")
+                    return True
+                else:
+                    print(f"FFmpeg error: {result.stderr}")
+                    return self.create_clip_opencv_fallback(cap, start_frame, end_frame, output_path, fps)
+                    
+        except Exception as e:
+            print(f"Error creating clip with ffmpeg: {str(e)}")
+            return self.create_clip_opencv_fallback(cap, start_frame, end_frame, output_path, fps)
+    
+    def create_clip_opencv_fallback(self, cap, start_frame, end_frame, output_path, fps):
         out = None
         try:
             width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -285,11 +329,11 @@ class VideoEmotionAnnotator:
                 frames_written += 1
                 current_frame += 1
             
-            print(f"Successfully wrote {frames_written} frames to {output_path}")
+            print(f"Successfully wrote {frames_written} frames (no audio): {output_path}")
             return True
             
         except Exception as e:
-            print(f"Error creating clip: {str(e)}")
+            print(f"Error creating clip with OpenCV: {str(e)}")
             return False
         finally:
             if out is not None:
