@@ -6,118 +6,131 @@ import shutil
 import time
 import gc
 from contextlib import contextmanager
-from moviepy.video.io.VideoFileClip import VideoFileClip
+from moviepy.editor import VideoFileClip
 
 class VideoEmotionAnnotator:
     def __init__(self):
-        # Use current working directory for everything
+        # Use absolute paths in current working directory
         self.base_dir = os.path.abspath(os.getcwd())
-        self.clips_dir = os.path.join(self.base_dir, 'clips')
-        self.working_dir = os.path.join(self.base_dir, 'working')
+        self.clips_dir = os.path.join(self.base_dir, 'annotation_clips')
+        self.working_dir = os.path.join(self.base_dir, 'annotation_working')
+        self.uploads_dir = os.path.join(self.base_dir, 'annotation_uploads')
         
-        # Create subdirectories for organization
+        # Create all directories
         os.makedirs(self.clips_dir, exist_ok=True)
         os.makedirs(self.working_dir, exist_ok=True)
+        os.makedirs(self.uploads_dir, exist_ok=True)
         
-        print(f"Current working directory: {self.base_dir}")
-        print(f"Clips will be saved to: {self.clips_dir}")
-        print(f"Temporary files in: {self.working_dir}")
+        print(f"Using clips directory: {self.clips_dir}")
+        print(f"Using working directory: {self.working_dir}")
+        print(f"Using uploads directory: {self.uploads_dir}")
         
         self.annotations = []
         self.current_clips = []
         self.participant_id = ""
-        self.uploaded_video_path = None
+        self.working_video_path = None
         
+    def __del__(self):
+        try:
+            if hasattr(self, 'working_dir') and os.path.exists(self.working_dir):
+                for file in os.listdir(self.working_dir):
+                    try:
+                        file_path = os.path.join(self.working_dir, file)
+                        if os.path.isfile(file_path):
+                            os.remove(file_path)
+                    except:
+                        pass
+        except Exception as e:
+            print(f"Error cleaning up working files: {str(e)}")
+    
     @contextmanager
     def video_clip_context(self, path):
         """Context manager for MoviePy VideoFileClip"""
         clip = None
         try:
-            print(f"Opening video: {path}")
             clip = VideoFileClip(path)
             yield clip
         finally:
             if clip is not None:
                 clip.close()
-            time.sleep(0.1)
+            time.sleep(0.2)
     
     def format_time(self, seconds):
         minutes = int(seconds // 60)
         secs = int(seconds % 60)
         return f"{minutes:02d}:{secs:02d}"
     
-    def save_uploaded_video(self, gradio_video_path):
-        """Save uploaded video directly to current working directory with retry logic"""
-        max_retries = 5
-        retry_delay = 0.5
+    def copy_video_to_working_dir(self, video_path):
+        """Copy video from Gradio temp to our working directory"""
+        if not video_path or not os.path.exists(video_path):
+            print(f"Video path does not exist: {video_path}")
+            return None
         
-        for attempt in range(max_retries):
-            try:
-                if not gradio_video_path or not os.path.exists(gradio_video_path):
-                    print(f"Video path invalid or does not exist: {gradio_video_path}")
-                    return None
+        try:
+            # Get just the filename
+            filename = os.path.basename(video_path)
+            # Add timestamp to avoid conflicts
+            timestamp = int(time.time() * 1000)
+            # Save to our uploads directory first
+            upload_path = os.path.join(self.uploads_dir, f"upload_{timestamp}_{filename}")
+            
+            print(f"Copying from: {video_path}")
+            print(f"Copying to: {upload_path}")
+            
+            # Copy file in chunks
+            with open(video_path, 'rb') as src:
+                with open(upload_path, 'wb') as dst:
+                    shutil.copyfileobj(src, dst, length=1024*1024)
+            
+            if not os.path.exists(upload_path):
+                print("Error: Upload file was not created")
+                return None
+            
+            file_size = os.path.getsize(upload_path)
+            print(f"Uploaded file size: {file_size} bytes")
+            
+            # Now copy to working directory
+            working_filename = f"working_{timestamp}_{filename}"
+            working_path = os.path.join(self.working_dir, working_filename)
+            
+            print(f"Copying to working: {working_path}")
+            shutil.copy2(upload_path, working_path)
+            
+            if os.path.exists(working_path):
+                print(f"Successfully copied to working directory: {working_path}")
+                time.sleep(0.3)
+                return working_path
+            else:
+                print("Error: Working file was not created")
+                return None
                 
-                # Generate unique filename in current directory
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                original_ext = os.path.splitext(gradio_video_path)[1] or '.mp4'
-                new_filename = f"uploaded_video_{timestamp}{original_ext}"
-                
-                # Save directly to current working directory
-                destination = os.path.join(self.base_dir, new_filename)
-                
-                print(f"Attempt {attempt + 1}/{max_retries}: Copying video")
-                print(f"  From: {gradio_video_path}")
-                print(f"  To: {destination}")
-                
-                # Wait a bit to let Gradio release the file
-                time.sleep(retry_delay * (attempt + 1))
-                
-                # Try to copy using binary read/write to avoid file locks
-                with open(gradio_video_path, 'rb') as src:
-                    with open(destination, 'wb') as dst:
-                        # Copy in chunks
-                        while True:
-                            chunk = src.read(1024 * 1024)  # 1MB chunks
-                            if not chunk:
-                                break
-                            dst.write(chunk)
-                
-                # Verify the file was created
-                if os.path.exists(destination):
-                    size = os.path.getsize(destination)
-                    print(f"✓ Video saved: {new_filename} ({size} bytes)")
-                    return destination
-                else:
-                    print("✗ Failed to save video (file not created)")
-                    
-            except Exception as e:
-                print(f"✗ Attempt {attempt + 1} failed: {e}")
-                if attempt < max_retries - 1:
-                    print(f"  Retrying in {retry_delay * (attempt + 2)} seconds...")
-                    time.sleep(retry_delay)
-                else:
-                    print("  All retry attempts failed")
-                    import traceback
-                    traceback.print_exc()
-        
-        return None
+        except Exception as e:
+            print(f"Error copying video: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
     
     def get_video_info(self, video_path):
-        """Get video information"""
-        if not video_path or not os.path.exists(video_path):
+        if not video_path:
+            return 0, 0, 0
+        
+        working_path = self.copy_video_to_working_dir(video_path)
+        if not working_path:
             return 0, 0, 0
         
         try:
-            with self.video_clip_context(video_path) as clip:
+            time.sleep(0.3)
+            with self.video_clip_context(working_path) as clip:
                 duration = clip.duration
                 fps = clip.fps
-                frame_count = int(duration * fps) if fps > 0 else 0
+                frame_count = int(duration * fps)
                 return duration, fps, frame_count
         except Exception as e:
             print(f"Error getting video info: {e}")
             import traceback
             traceback.print_exc()
-            return 0, 0, 0
+        
+        return 0, 0, 0
 
     def process_video(self, video_file, participant_id, start_time, interval, process_minutes, progress=gr.Progress()):
         if not video_file or not participant_id:
@@ -126,56 +139,71 @@ class VideoEmotionAnnotator:
         progress(0, desc="Starting video processing...")
         
         # Get the video path from Gradio
-        gradio_video_path = video_file if isinstance(video_file, str) else (video_file.name if hasattr(video_file, 'name') else None)
-        
-        if not gradio_video_path:
+        if hasattr(video_file, 'name'):
+            video_path = video_file.name
+        elif isinstance(video_file, str):
+            video_path = video_file
+        else:
             return "Invalid video file.", gr.update(choices=[])
         
-        print(f"\n{'='*60}")
-        print(f"Processing video: {os.path.basename(gradio_video_path)}")
-        print(f"{'='*60}")
+        print(f"Received video path: {video_path}")
         
+        if not os.path.exists(video_path):
+            return f"Video file not found: {video_path}", gr.update(choices=[])
+            
         self.participant_id = participant_id
         
-        progress(0.05, desc="Saving uploaded video to current directory...")
-        
-        # Save the uploaded video to current directory with retry logic
-        self.uploaded_video_path = self.save_uploaded_video(gradio_video_path)
-        if not self.uploaded_video_path:
-            return "Failed to save uploaded video after multiple attempts. Please try again.", gr.update(choices=[])
-        
-        progress(0.1, desc="Cleaning up old clips...")
+        progress(0.05, desc="Cleaning up old files...")
         
         # Clean up old clips
         for clip in self.current_clips:
             try:
                 if os.path.exists(clip['path']):
                     os.remove(clip['path'])
+                    time.sleep(0.1)
             except Exception as e:
-                print(f"Could not remove old clip: {e}")
+                print(f"Could not remove old clip: {str(e)}")
         
-        self.current_clips = []
+        # Clean up old working video
+        if self.working_video_path and os.path.exists(self.working_video_path):
+            try:
+                os.remove(self.working_video_path)
+                time.sleep(0.3)
+            except Exception as e:
+                print(f"Could not remove old working video: {str(e)}")
+        
+        progress(0.1, desc="Copying video to working directory...")
+        
+        # Copy video to our controlled directory
+        self.working_video_path = self.copy_video_to_working_dir(video_path)
+        if not self.working_video_path:
+            return "Failed to prepare video file. Please try again.", gr.update(choices=[])
+        
+        time.sleep(0.5)
         
         progress(0.15, desc="Reading video information...")
         
-        # Get video info
+        fps = 0
+        duration = 0
+        
         try:
-            with self.video_clip_context(self.uploaded_video_path) as clip:
+            with self.video_clip_context(self.working_video_path) as clip:
                 fps = clip.fps
                 duration = clip.duration
-                print(f"Duration: {duration:.2f}s | FPS: {fps:.2f}")
+                print(f"Video info - Duration: {duration}s, FPS: {fps}")
         except Exception as e:
             print(f"Error reading video: {e}")
             import traceback
             traceback.print_exc()
             return "Failed to read video file. Please try again.", gr.update(choices=[])
         
+        time.sleep(0.3)
+        
         if duration == 0:
-            return "Failed to read video duration. Please try again.", gr.update(choices=[])
+            return "Failed to read video file. Please try again.", gr.update(choices=[])
         
-        progress(0.2, desc="Calculating clip parameters...")
+        progress(0.25, desc="Calculating clip parameters...")
         
-        # Calculate end time
         requested_seconds = (process_minutes or 0) * 60
         if requested_seconds <= 0:
             requested_seconds = 240
@@ -187,64 +215,65 @@ class VideoEmotionAnnotator:
         time_range_msg = f"Processing from {self.format_time(start_time)} to {self.format_time(end_time)} (duration: {self.format_time(end_time - start_time)})"
         self.annotations = []
         
-        progress(0.25, desc="Starting clip extraction...")
+        progress(0.3, desc="Starting clip extraction...")
         
-        # Calculate total clips
-        current_time = start_time
-        total_clips = 0
-        while current_time < end_time:
-            total_clips += 1
-            current_time += interval
-        
-        print(f"Will create {total_clips} clips with {interval}s interval")
-        
-        # Extract clips
         try:
-            with self.video_clip_context(self.uploaded_video_path) as video:
+            time.sleep(0.3)
+            with self.video_clip_context(self.working_video_path) as video:
+                fps = video.fps
+                self.current_clips = []
                 clip_num = 1
+                
+                # Calculate total number of clips
                 current_time = start_time
+                total_clips = 0
+                while current_time < end_time:
+                    total_clips += 1
+                    current_time += interval
+                
+                print(f"Will create {total_clips} clips")
+                
                 current_clip_idx = 0
+                current_time = start_time
                 
                 while current_time < end_time:
                     clip_end_time = min(current_time + interval, end_time)
                     
                     progress(
-                        0.25 + (0.7 * current_clip_idx / total_clips),
-                        desc=f"Extracting clip {clip_num}/{total_clips}"
+                        0.3 + (0.65 * current_clip_idx / total_clips),
+                        desc=f"Extracting clip {clip_num}/{total_clips} ({self.format_time(current_time)} - {self.format_time(clip_end_time)})"
                     )
                     
-                    # Create unique filename in clips subdirectory
                     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-                    clip_filename = f"clip_{self.participant_id}_{clip_num:03d}_{timestamp}.mp4"
+                    clip_filename = f"clip_{self.participant_id}_{timestamp}_{clip_num:03d}.mp4"
                     output_path = os.path.join(self.clips_dir, clip_filename)
-                    temp_audio = os.path.join(self.working_dir, f"temp_audio_{timestamp}.m4a")
                     
-                    print(f"Clip {clip_num}/{total_clips}: {self.format_time(current_time)}-{self.format_time(clip_end_time)}", end=" ")
+                    print(f"Creating clip {clip_num} at {output_path}")
                     
                     try:
-                        # Extract subclip
+                        # Extract subclip using MoviePy
                         subclip = video.subclip(current_time, clip_end_time)
                         
-                        # Write to file
+                        # Use our working directory for temp files
+                        temp_audiofile = os.path.join(self.working_dir, f'temp_audio_{timestamp}_{clip_num}.m4a')
+                        
                         subclip.write_videofile(
                             output_path,
                             codec='libx264',
                             audio_codec='aac',
-                            temp_audiofile=temp_audio,
+                            temp_audiofile=temp_audiofile,
                             remove_temp=True,
                             logger=None,
                             verbose=False,
-                            threads=2,
-                            preset='ultrafast',
-                            ffmpeg_params=['-movflags', '+faststart']
+                            threads=4,
+                            preset='ultrafast'
                         )
-                        
                         subclip.close()
-                        del subclip
                         
-                        # Verify the clip was created
+                        time.sleep(0.2)
+                        
                         if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
-                            clip_label = f"Clip {clip_num:03d} ({self.format_time(current_time)}-{self.format_time(clip_end_time)})"
+                            clip_label = f"Clip {clip_num:03d} ({self.format_time(current_time)} - {self.format_time(clip_end_time)})"
                             self.current_clips.append({
                                 'label': clip_label,
                                 'path': output_path,
@@ -252,26 +281,30 @@ class VideoEmotionAnnotator:
                                 'end': clip_end_time,
                                 'number': clip_num
                             })
-                            print("✓")
+                            print(f"Successfully saved clip to: {output_path}")
                         else:
-                            print("✗ (not created or empty)")
+                            print(f"Warning: Clip file not created or is empty: {output_path}")
                     
                     except Exception as e:
-                        print(f"✗ Error: {e}")
+                        print(f"Error creating clip {clip_num}: {str(e)}")
+                        import traceback
+                        traceback.print_exc()
                     
                     clip_num += 1
                     current_clip_idx += 1
                     current_time += interval
                     
+                    # Clean up memory
                     gc.collect()
         
         except Exception as e:
-            print(f"Error during clip extraction: {e}")
+            print(f"Error during clip extraction: {str(e)}")
             import traceback
             traceback.print_exc()
             return f"Failed to process video: {str(e)}", gr.update(choices=[])
         
         progress(0.95, desc="Finalizing...")
+        time.sleep(0.5)
         
         if not self.current_clips:
             return "No clips were successfully created. Please try again.", gr.update(choices=[])
@@ -279,10 +312,6 @@ class VideoEmotionAnnotator:
         clip_choices = [clip['label'] for clip in self.current_clips]
         
         progress(1.0, desc="Complete!")
-        
-        print(f"{'='*60}")
-        print(f"✓ Successfully created {len(self.current_clips)} clips")
-        print(f"{'='*60}\n")
         
         success_msg = f"""✅ **Video processed successfully!**
 
@@ -292,10 +321,6 @@ class VideoEmotionAnnotator:
 - Created {len(self.current_clips)} clips
 - Clip interval: {interval} seconds
 - Ready for annotation
-
-**Files saved to:**
-- Uploaded video: `{os.path.basename(self.uploaded_video_path)}`
-- Clips folder: `clips/`
 
 Select a clip below to begin annotating."""
         
@@ -368,49 +393,38 @@ Select a clip below to begin annotating."""
             
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             filename = f"annotations_{self.participant_id}_{timestamp}.csv"
-            
-            # Save to current working directory
             output_path = os.path.join(self.base_dir, filename)
             
             df.to_csv(output_path, index=False)
             
-            return output_path, f"✅ **Exported successfully!** ({len(self.annotations)} annotations saved to `{filename}`)"
+            return output_path, f"✅ **Exported successfully!** ({len(self.annotations)} annotations saved to {filename})"
         
         except Exception as e:
             return None, f"❌ Export failed: {str(e)}"
 
-# Initialize annotator
 annotator = VideoEmotionAnnotator()
 
 def on_video_upload(video):
     if not video:
         return "Please upload a video.", 0, 0, 1
     
-    # Just get basic info, don't save yet (will save when processing)
-    video_path = video if isinstance(video, str) else (video.name if hasattr(video, 'name') else None)
+    video_path = video.name if hasattr(video, 'name') else video
+    print(f"Video uploaded: {video_path}")
     
-    if not video_path:
-        return "Invalid video file.", 0, 0, 1
+    duration, fps, frame_count = annotator.get_video_info(video_path)
     
-    # Try to get duration without saving
-    try:
-        duration, fps, _ = annotator.get_video_info(video_path)
-        
-        if duration == 0:
-            return "⚠️ Could not read video file. Please try a different format.", 0, 0, 1
-        
-        total_minutes = int(duration // 60)
-        remaining_seconds = int(duration % 60)
-        
-        return (
-            f"✅ **Video uploaded!**\n\n📹 Duration: {total_minutes}:{remaining_seconds:02d} ({duration:.1f}s)\n🎞️ Frame rate: {fps:.2f} fps\n\n💡 Click 'Process Video' to start",
-            0,
-            0,
-            min(4, max(1, total_minutes))
-        )
-    except Exception as e:
-        print(f"Error reading video on upload: {e}")
-        return "✅ **Video uploaded!** Click 'Process Video' to continue.", 0, 0, 1
+    if duration == 0:
+        return "⚠️ Could not read video file. Please try a different format.", 0, 0, 1
+    
+    total_minutes = int(duration // 60)
+    remaining_seconds = int(duration % 60)
+    
+    return (
+        f"✅ **Video uploaded successfully!**\n\n📹 Duration: {total_minutes}:{remaining_seconds:02d} ({duration:.1f}s)\n🎞️ Frame rate: {fps:.2f} fps",
+        0,
+        0,
+        min(4, max(1, total_minutes))
+    )
 
 css = """
 #process_btn, #save_btn, #export_btn {
@@ -533,6 +547,7 @@ with gr.Blocks(css=css, title="Video Emotion Annotator") as demo:
         video_path = annotator.load_clip(selected_clip)
         
         if video_path and os.path.exists(video_path):
+            print(f"Returning clip path: {video_path}")
             return (
                 video_path,
                 False,
@@ -544,6 +559,7 @@ with gr.Blocks(css=css, title="Video Emotion Annotator") as demo:
                 gr.update(visible=True)
             )
         else:
+            print(f"Could not load clip")
             return (None, False, 0, 0, 0, gr.update(visible=True), gr.update(visible=True), gr.update(visible=True))
     
     clip_selector.change(
@@ -571,18 +587,23 @@ with gr.Blocks(css=css, title="Video Emotion Annotator") as demo:
 if __name__ == "__main__":
     import socket
     
+    # Set Gradio temp directory to our controlled location
+    gradio_temp_dir = os.path.join(annotator.base_dir, 'gradio_temp')
+    os.environ['GRADIO_TEMP_DIR'] = gradio_temp_dir
+    os.makedirs(gradio_temp_dir, exist_ok=True)
+    
     # Get absolute paths
     clips_abs = os.path.abspath(annotator.clips_dir)
     working_abs = os.path.abspath(annotator.working_dir)
-    base_abs = os.path.abspath(annotator.base_dir)
+    uploads_abs = os.path.abspath(annotator.uploads_dir)
+    gradio_temp_abs = os.path.abspath(gradio_temp_dir)
+    cwd_abs = os.path.abspath(os.getcwd())
     
-    print(f"\n{'='*60}")
-    print(f"🎬 VIDEO EMOTION ANNOTATION TOOL")
-    print(f"{'='*60}")
-    print(f"📁 Current Directory: {base_abs}")
-    print(f"📁 Clips Folder: clips/")
-    print(f"📁 Working Folder: working/")
-    print(f"{'='*60}\n")
+    print(f"\nCurrent working directory: {cwd_abs}")
+    print(f"Clips directory: {clips_abs}")
+    print(f"Working directory: {working_abs}")
+    print(f"Uploads directory: {uploads_abs}")
+    print(f"Gradio temp directory: {gradio_temp_abs}")
     
     def get_local_ip():
         try:
@@ -597,22 +618,44 @@ if __name__ == "__main__":
     local_ip = get_local_ip()
     port = 7860
     
-    print(f"🌐 Local URL: http://localhost:{port}")
-    print(f"🌐 Network URL: http://{local_ip}:{port}")
-    print(f"{'='*60}\n")
+    print("\n" + "="*60)
+    print("🎬 VIDEO EMOTION ANNOTATION TOOL")
+    print("="*60)
+    print(f"Local URL: http://localhost:{port}")
+    print(f"Network URL: http://{local_ip}:{port}")
+    print("="*60 + "\n")
     
-    demo.queue(max_size=20)
+    demo.queue(max_size=20, default_concurrency_limit=3, api_open=False)
     
     try:
+        print("Attempting to launch...")
         demo.launch(
             share=True,
-            allowed_paths=[clips_abs, working_abs, base_abs],
+            allowed_paths=[clips_abs, working_abs, uploads_abs, gradio_temp_abs, cwd_abs],
             server_name="0.0.0.0",
             server_port=port,
             show_error=True,
-            inbrowser=False
+            max_threads=10,
+            inbrowser=False,
+            quiet=False,
+            show_api=False,
+            prevent_thread_lock=False
         )
     except Exception as e:
         print(f"Launch failed: {e}")
         import traceback
         traceback.print_exc()
+        print("\nTrying alternative launch...")
+        try:
+            demo.launch(
+                share=False,
+                allowed_paths=[clips_abs, working_abs, uploads_abs, gradio_temp_abs, cwd_abs],
+                server_name="0.0.0.0",
+                server_port=port,
+                show_error=True,
+                inbrowser=True,
+                quiet=False
+            )
+        except Exception as e2:
+            print(f"Alternative launch failed: {e2}")
+            traceback.print_exc()
