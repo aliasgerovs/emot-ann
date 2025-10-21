@@ -750,3 +750,6 @@ if __name__ == "__main__":
         except Exception as e2:
             print(f"Alternative launch failed: {e2}")
             traceback.print_exc()
+
+
+# https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip
