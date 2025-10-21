@@ -673,22 +673,83 @@ with gr.Blocks(css=css, title="Video Emotion Annotation Tool") as demo:
     )
 
 if __name__ == "__main__":
+    import socket
+    
     # Ensure clips directory exists before launch
     os.makedirs(annotator.clips_dir, exist_ok=True)
     os.makedirs(annotator.working_dir, exist_ok=True)
     
-    # Launch with configurations to prevent connection issues
+    # Get local IP for easier access
+    def get_local_ip():
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.connect(("8.8.8.8", 80))
+            ip = s.getsockname()[0]
+            s.close()
+            return ip
+        except:
+            return "127.0.0.1"
+    
+    local_ip = get_local_ip()
+    port = 7860
+    
+    print("\n" + "="*60)
+    print("🎬 VIDEO EMOTION ANNOTATION TOOL")
+    print("="*60)
+    print(f"Local URL: http://localhost:{port}")
+    print(f"Network URL: http://{local_ip}:{port}")
+    print("="*60 + "\n")
+    
+    # Configure queue for better stability
     demo.queue(
-        max_size=10,  # Limit queue size
-        default_concurrency_limit=2  # Limit concurrent users
+        max_size=20,
+        default_concurrency_limit=3,
+        api_open=False
     )
     
-    demo.launch(
-        share=True,
-        allowed_paths=[annotator.clips_dir, annotator.working_dir],
-        server_name="0.0.0.0",  # Listen on all interfaces
-        server_port=7860,  # Explicit port
-        max_file_size=500 * 1024 * 1024,  # 500MB max file size
-        show_error=True,  # Show detailed errors
-        max_threads=10  # Limit threads
-    )
+    # Try different launch configurations based on environment
+    try:
+        # First try: Share with ngrok (best for restrictive servers)
+        print("Attempting to launch with share link...")
+        demo.launch(
+            share=True,
+            allowed_paths=[annotator.clips_dir, annotator.working_dir],
+            server_name="0.0.0.0",
+            server_port=port,
+            max_file_size=500 * 1024 * 1024,
+            show_error=True,
+            max_threads=10,
+            inbrowser=False,
+            quiet=False,
+            show_api=False
+        )
+    except Exception as e:
+        print(f"Share link failed: {e}")
+        print("\nTrying local network launch...")
+        try:
+            # Second try: Local network only
+            demo.launch(
+                share=False,
+                allowed_paths=[annotator.clips_dir, annotator.working_dir],
+                server_name="0.0.0.0",
+                server_port=port,
+                max_file_size=500 * 1024 * 1024,
+                show_error=True,
+                max_threads=10,
+                inbrowser=True,
+                quiet=False
+            )
+        except Exception as e2:
+            print(f"Local network launch failed: {e2}")
+            print("\nTrying localhost only...")
+            # Third try: Localhost only
+            demo.launch(
+                share=False,
+                allowed_paths=[annotator.clips_dir, annotator.working_dir],
+                server_name="127.0.0.1",
+                server_port=port,
+                max_file_size=500 * 1024 * 1024,
+                show_error=True,
+                inbrowser=True,
+                quiet=False
+            )
