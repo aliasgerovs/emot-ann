@@ -10,20 +10,18 @@ from moviepy.editor import VideoFileClip
 
 class VideoEmotionAnnotator:
     def __init__(self):
-        # Use absolute paths in current working directory
+        # Use current working directory for everything
         self.base_dir = os.path.abspath(os.getcwd())
-        self.clips_dir = os.path.join(self.base_dir, 'annotation_clips')
-        self.working_dir = os.path.join(self.base_dir, 'annotation_working')
-        self.uploads_dir = os.path.join(self.base_dir, 'annotation_uploads')
+        self.clips_dir = os.path.join(self.base_dir, 'clips')
+        self.working_dir = os.path.join(self.base_dir, 'working')
         
-        # Create all directories with full permissions
-        for directory in [self.clips_dir, self.working_dir, self.uploads_dir]:
-            os.makedirs(directory, exist_ok=True)
+        # Create subdirectories for organization
+        os.makedirs(self.clips_dir, exist_ok=True)
+        os.makedirs(self.working_dir, exist_ok=True)
         
-        print(f"Base directory: {self.base_dir}")
-        print(f"Clips directory: {self.clips_dir}")
-        print(f"Working directory: {self.working_dir}")
-        print(f"Uploads directory: {self.uploads_dir}")
+        print(f"Current working directory: {self.base_dir}")
+        print(f"Clips will be saved to: {self.clips_dir}")
+        print(f"Temporary files in: {self.working_dir}")
         
         self.annotations = []
         self.current_clips = []
@@ -63,30 +61,32 @@ class VideoEmotionAnnotator:
         return f"{minutes:02d}:{secs:02d}"
     
     def save_uploaded_video(self, gradio_video_path):
-        """Save uploaded video to our uploads directory"""
+        """Save uploaded video directly to current working directory"""
         try:
             if not gradio_video_path or not os.path.exists(gradio_video_path):
                 print(f"Video path invalid or does not exist: {gradio_video_path}")
                 return None
             
-            # Generate unique filename
+            # Generate unique filename in current directory
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             original_ext = os.path.splitext(gradio_video_path)[1] or '.mp4'
-            new_filename = f"uploaded_{timestamp}{original_ext}"
-            destination = os.path.join(self.uploads_dir, new_filename)
+            new_filename = f"uploaded_video_{timestamp}{original_ext}"
+            
+            # Save directly to current working directory (not subdirectory)
+            destination = os.path.join(self.base_dir, new_filename)
             
             print(f"Copying video from: {gradio_video_path}")
-            print(f"Copying video to: {destination}")
+            print(f"Saving to current directory: {destination}")
             
             # Copy file
             shutil.copy2(gradio_video_path, destination)
             
             if os.path.exists(destination):
                 size = os.path.getsize(destination)
-                print(f"Video saved successfully: {destination} ({size} bytes)")
+                print(f"✓ Video saved: {new_filename} ({size} bytes)")
                 return destination
             else:
-                print("Failed to save video")
+                print("✗ Failed to save video")
                 return None
                 
         except Exception as e:
@@ -124,13 +124,15 @@ class VideoEmotionAnnotator:
         if not gradio_video_path:
             return "Invalid video file.", gr.update(choices=[])
         
-        print(f"Received video from Gradio: {gradio_video_path}")
+        print(f"\n{'='*60}")
+        print(f"Processing video: {os.path.basename(gradio_video_path)}")
+        print(f"{'='*60}")
         
         self.participant_id = participant_id
         
-        progress(0.05, desc="Saving uploaded video...")
+        progress(0.05, desc="Saving uploaded video to current directory...")
         
-        # Save the uploaded video to our directory
+        # Save the uploaded video to current directory
         self.uploaded_video_path = self.save_uploaded_video(gradio_video_path)
         if not self.uploaded_video_path:
             return "Failed to save uploaded video. Please try again.", gr.update(choices=[])
@@ -154,7 +156,7 @@ class VideoEmotionAnnotator:
             with self.video_clip_context(self.uploaded_video_path) as clip:
                 fps = clip.fps
                 duration = clip.duration
-                print(f"Video info - Duration: {duration}s, FPS: {fps}")
+                print(f"Duration: {duration:.2f}s | FPS: {fps:.2f}")
         except Exception as e:
             print(f"Error reading video: {e}")
             import traceback
@@ -187,7 +189,7 @@ class VideoEmotionAnnotator:
             total_clips += 1
             current_time += interval
         
-        print(f"Will create {total_clips} clips")
+        print(f"Will create {total_clips} clips with {interval}s interval")
         
         # Extract clips
         try:
@@ -204,20 +206,19 @@ class VideoEmotionAnnotator:
                         desc=f"Extracting clip {clip_num}/{total_clips}"
                     )
                     
-                    # Create unique filename
+                    # Create unique filename in clips subdirectory
                     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
                     clip_filename = f"clip_{self.participant_id}_{clip_num:03d}_{timestamp}.mp4"
                     output_path = os.path.join(self.clips_dir, clip_filename)
                     temp_audio = os.path.join(self.working_dir, f"temp_audio_{timestamp}.m4a")
                     
-                    print(f"Creating clip {clip_num}: {self.format_time(current_time)} - {self.format_time(clip_end_time)}")
-                    print(f"Output: {output_path}")
+                    print(f"Clip {clip_num}/{total_clips}: {self.format_time(current_time)}-{self.format_time(clip_end_time)}", end=" ")
                     
                     try:
                         # Extract subclip
                         subclip = video.subclip(current_time, clip_end_time)
                         
-                        # Write to file with all paths in our controlled directories
+                        # Write to file
                         subclip.write_videofile(
                             output_path,
                             codec='libx264',
@@ -244,12 +245,12 @@ class VideoEmotionAnnotator:
                                 'end': clip_end_time,
                                 'number': clip_num
                             })
-                            print(f"✓ Clip {clip_num} created successfully")
+                            print("✓")
                         else:
-                            print(f"✗ Clip {clip_num} was not created or is empty")
+                            print("✗ (not created or empty)")
                     
                     except Exception as e:
-                        print(f"Error creating clip {clip_num}: {e}")
+                        print(f"✗ Error: {e}")
                         import traceback
                         traceback.print_exc()
                     
@@ -274,6 +275,10 @@ class VideoEmotionAnnotator:
         
         progress(1.0, desc="Complete!")
         
+        print(f"{'='*60}")
+        print(f"✓ Successfully created {len(self.current_clips)} clips")
+        print(f"{'='*60}\n")
+        
         success_msg = f"""✅ **Video processed successfully!**
 
 {time_range_msg}
@@ -282,6 +287,10 @@ class VideoEmotionAnnotator:
 - Created {len(self.current_clips)} clips
 - Clip interval: {interval} seconds
 - Ready for annotation
+
+**Files saved to:**
+- Uploaded video: `{os.path.basename(self.uploaded_video_path)}`
+- Clips folder: `clips/`
 
 Select a clip below to begin annotating."""
         
@@ -354,11 +363,13 @@ Select a clip below to begin annotating."""
             
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             filename = f"annotations_{self.participant_id}_{timestamp}.csv"
+            
+            # Save to current working directory
             output_path = os.path.join(self.base_dir, filename)
             
             df.to_csv(output_path, index=False)
             
-            return output_path, f"✅ **Exported successfully!** ({len(self.annotations)} annotations saved to {filename})"
+            return output_path, f"✅ **Exported successfully!** ({len(self.annotations)} annotations saved to `{filename}`)"
         
         except Exception as e:
             return None, f"❌ Export failed: {str(e)}"
@@ -370,7 +381,7 @@ def on_video_upload(video):
     if not video:
         return "Please upload a video.", 0, 0, 1
     
-    # Save video immediately
+    # Save video immediately to current directory
     video_path = video if isinstance(video, str) else (video.name if hasattr(video, 'name') else None)
     
     if not video_path:
@@ -390,7 +401,7 @@ def on_video_upload(video):
     remaining_seconds = int(duration % 60)
     
     return (
-        f"✅ **Video uploaded successfully!**\n\n📹 Duration: {total_minutes}:{remaining_seconds:02d} ({duration:.1f}s)\n🎞️ Frame rate: {fps:.2f} fps",
+        f"✅ **Video uploaded and saved!**\n\n📹 Duration: {total_minutes}:{remaining_seconds:02d} ({duration:.1f}s)\n🎞️ Frame rate: {fps:.2f} fps\n📁 Saved as: `{os.path.basename(saved_path)}`",
         0,
         0,
         min(4, max(1, total_minutes))
@@ -558,16 +569,14 @@ if __name__ == "__main__":
     # Get absolute paths
     clips_abs = os.path.abspath(annotator.clips_dir)
     working_abs = os.path.abspath(annotator.working_dir)
-    uploads_abs = os.path.abspath(annotator.uploads_dir)
     base_abs = os.path.abspath(annotator.base_dir)
     
     print(f"\n{'='*60}")
-    print(f"📁 Working Directories:")
+    print(f"🎬 VIDEO EMOTION ANNOTATION TOOL")
     print(f"{'='*60}")
-    print(f"Base: {base_abs}")
-    print(f"Clips: {clips_abs}")
-    print(f"Working: {working_abs}")
-    print(f"Uploads: {uploads_abs}")
+    print(f"📁 Current Directory: {base_abs}")
+    print(f"📁 Clips Folder: clips/")
+    print(f"📁 Working Folder: working/")
     print(f"{'='*60}\n")
     
     def get_local_ip():
@@ -583,11 +592,8 @@ if __name__ == "__main__":
     local_ip = get_local_ip()
     port = 7860
     
-    print(f"{'='*60}")
-    print("🎬 VIDEO EMOTION ANNOTATION TOOL")
-    print(f"{'='*60}")
-    print(f"Local URL: http://localhost:{port}")
-    print(f"Network URL: http://{local_ip}:{port}")
+    print(f"🌐 Local URL: http://localhost:{port}")
+    print(f"🌐 Network URL: http://{local_ip}:{port}")
     print(f"{'='*60}\n")
     
     demo.queue(max_size=20)
@@ -595,7 +601,7 @@ if __name__ == "__main__":
     try:
         demo.launch(
             share=True,
-            allowed_paths=[clips_abs, working_abs, uploads_abs, base_abs],
+            allowed_paths=[clips_abs, working_abs, base_abs],
             server_name="0.0.0.0",
             server_port=port,
             show_error=True,
