@@ -6,6 +6,7 @@ from datetime import datetime
 import tempfile
 import shutil
 import time
+from contextlib import contextmanager
 
 class VideoEmotionAnnotator:
     def __init__(self):
@@ -40,6 +41,20 @@ class VideoEmotionAnnotator:
         except Exception as e:
             print(f"Error cleaning up working files: {str(e)}")
     
+    @contextmanager
+    def video_capture(self, path):
+        """Context manager for safe video capture handling"""
+        cap = None
+        try:
+            cap = cv2.VideoCapture(path)
+            yield cap
+        finally:
+            if cap is not None:
+                cap.release()
+            cv2.destroyAllWindows()
+            cv2.waitKey(1)
+            time.sleep(0.2)
+    
     def format_time(self, seconds):
         minutes = int(seconds // 60)
         secs = int(seconds % 60)
@@ -51,19 +66,17 @@ class VideoEmotionAnnotator:
             return None
         
         try:
-            # Create a working copy
             filename = os.path.basename(video_path)
-            working_path = os.path.join(self.working_dir, f"working_{filename}")
+            timestamp = int(time.time() * 1000)  # millisecond precision
+            working_path = os.path.join(self.working_dir, f"working_{timestamp}_{filename}")
             
-            # Remove old working file if exists
-            if os.path.exists(working_path):
-                try:
-                    os.remove(working_path)
-                except:
-                    working_path = os.path.join(self.working_dir, f"working_{int(time.time())}_{filename}")
+            # Use shutil with explicit buffer size for better reliability
+            with open(video_path, 'rb') as src:
+                with open(working_path, 'wb') as dst:
+                    shutil.copyfileobj(src, dst, length=1024*1024)  # 1MB buffer
             
-            shutil.copy2(video_path, working_path)
             print(f"Copied video to: {working_path}")
+            time.sleep(0.3)  # Wait for filesystem
             return working_path
         except Exception as e:
             print(f"Error copying video: {e}")
@@ -73,34 +86,20 @@ class VideoEmotionAnnotator:
         if not video_path:
             return 0, 0, 0
         
-        # Copy to working directory first
         working_path = self.copy_video_to_working_dir(video_path)
         if not working_path:
             return 0, 0, 0
         
-        max_retries = 3
-        for attempt in range(max_retries):
-            try:
-                cap = cv2.VideoCapture(working_path)
+        try:
+            time.sleep(0.3)
+            with self.video_capture(working_path) as cap:
                 if cap.isOpened():
                     fps = cap.get(cv2.CAP_PROP_FPS)
                     frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
                     duration = frame_count / fps if fps > 0 else 0
-                    cap.release()
-                    cv2.destroyAllWindows()
-                    cv2.waitKey(1)
                     return duration, fps, frame_count
-            except Exception as e:
-                print(f"Attempt {attempt + 1} failed: {e}")
-                if attempt < max_retries - 1:
-                    time.sleep(0.5)
-            finally:
-                try:
-                    if 'cap' in locals():
-                        cap.release()
-                    cv2.destroyAllWindows()
-                except:
-                    pass
+        except Exception as e:
+            print(f"Error getting video info: {e}")
         
         return 0, 0, 0
 
@@ -123,27 +122,43 @@ class VideoEmotionAnnotator:
             try:
                 if os.path.exists(clip['path']):
                     os.remove(clip['path'])
+                    time.sleep(0.1)
             except Exception as e:
-                print(f"Could not remove old clip {clip['path']}: {str(e)}")
+                print(f"Could not remove old clip: {str(e)}")
+        
+        # Clean up old working video if exists
+        if self.working_video_path and os.path.exists(self.working_video_path):
+            try:
+                os.remove(self.working_video_path)
+                time.sleep(0.3)
+            except Exception as e:
+                print(f"Could not remove old working video: {str(e)}")
         
         # Copy video to working directory
         self.working_video_path = self.copy_video_to_working_dir(video_path)
         if not self.working_video_path:
             return "Failed to prepare video file. Please try again.", gr.update(choices=[])
         
-        # Wait to ensure file is ready
-        time.sleep(0.2)
+        time.sleep(0.5)
         
-        # Get video info
-        cap = cv2.VideoCapture(self.working_video_path)
-        if not cap.isOpened():
-            return "Failed to open video file.", gr.update(choices=[])
+        # Get video info with proper cleanup
+        fps = 0
+        frame_count = 0
+        duration = 0
         
-        fps = cap.get(cv2.CAP_PROP_FPS)
-        frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-        duration = frame_count / fps if fps > 0 else 0
-        cap.release()
-        cv2.destroyAllWindows()
+        try:
+            with self.video_capture(self.working_video_path) as cap:
+                if not cap.isOpened():
+                    return "Failed to open video file.", gr.update(choices=[])
+                
+                fps = cap.get(cv2.CAP_PROP_FPS)
+                frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+                duration = frame_count / fps if fps > 0 else 0
+        except Exception as e:
+            print(f"Error reading video: {e}")
+            return "Failed to read video file. Please try again.", gr.update(choices=[])
+        
+        time.sleep(0.3)
         
         if duration == 0:
             return "Failed to read video file. Please try again.", gr.update(choices=[])
@@ -159,47 +174,63 @@ class VideoEmotionAnnotator:
         time_range_msg = f"Processing from {self.format_time(start_time)} to {self.format_time(end_time)} (duration: {self.format_time(end_time - start_time)})"
         self.annotations = []
         
-        # Open video once and process all clips
-        cap = cv2.VideoCapture(self.working_video_path)
-        if not cap.isOpened():
-            return "Failed to open video file.", gr.update(choices=[])
-            
-        fps = cap.get(cv2.CAP_PROP_FPS)
-        start_frame = int(start_time * fps)
-        end_frame = int(end_time * fps)
-        interval_frames = int(interval * fps)
-        self.current_clips = []
-        clip_num = 1
+        # Process clips with proper cleanup
+        try:
+            time.sleep(0.3)
+            with self.video_capture(self.working_video_path) as cap:
+                if not cap.isOpened():
+                    return "Failed to open video file.", gr.update(choices=[])
+                    
+                fps = cap.get(cv2.CAP_PROP_FPS)
+                start_frame = int(start_time * fps)
+                end_frame = int(end_time * fps)
+                interval_frames = int(interval * fps)
+                self.current_clips = []
+                clip_num = 1
+                
+                for frame_start in range(start_frame, end_frame, interval_frames):
+                    frame_end = min(frame_start + interval_frames, end_frame)
+                    
+                    clip_filename = f"{self.participant_id}_clip_{clip_num:03d}.mp4"
+                    clip_path = os.path.join(self.clips_dir, clip_filename)
+                    
+                    # Remove old clip if exists
+                    if os.path.exists(clip_path):
+                        try:
+                            os.remove(clip_path)
+                            time.sleep(0.2)
+                        except:
+                            timestamp = int(time.time() * 1000)
+                            clip_path = os.path.join(self.clips_dir, f"{self.participant_id}_clip_{timestamp}_{clip_num:03d}.mp4")
+                    
+                    success = self.create_clip(cap, frame_start, frame_end, clip_path, fps)
+                    
+                    if success and os.path.exists(clip_path):
+                        time.sleep(0.2)
+                        # Verify the clip is readable
+                        try:
+                            with self.video_capture(clip_path) as test_cap:
+                                if test_cap.isOpened():
+                                    self.current_clips.append({
+                                        'path': clip_path,
+                                        'number': clip_num,
+                                        'start_time': frame_start/fps,
+                                        'end_time': frame_end/fps
+                                    })
+                                    print(f"Clip {clip_num} created and verified: {clip_path}")
+                                    clip_num += 1
+                                else:
+                                    print(f"Warning: Clip {clip_num} was created but cannot be opened: {clip_path}")
+                        except Exception as e:
+                            print(f"Error verifying clip {clip_num}: {e}")
+                    
+                    time.sleep(0.1)
         
-        for frame_start in range(start_frame, end_frame, interval_frames):
-            frame_end = min(frame_start + interval_frames, end_frame)
-            
-            # Use participant ID in filename for organization
-            clip_filename = f"{self.participant_id}_clip_{clip_num:03d}.mp4"
-            clip_path = os.path.join(self.clips_dir, clip_filename)
-            
-            success = self.create_clip(cap, frame_start, frame_end, clip_path, fps)
-            
-            if success and os.path.exists(clip_path):
-                # Verify the clip is readable
-                test_cap = cv2.VideoCapture(clip_path)
-                if test_cap.isOpened():
-                    test_cap.release()
-                    self.current_clips.append({
-                        'path': clip_path,
-                        'number': clip_num,
-                        'start_time': frame_start/fps,
-                        'end_time': frame_end/fps
-                    })
-                    print(f"Clip {clip_num} created and verified: {clip_path}")
-                    clip_num += 1
-                else:
-                    print(f"Warning: Clip {clip_num} was created but cannot be opened: {clip_path}")
-                    test_cap.release()
+        except Exception as e:
+            print(f"Error processing video: {e}")
+            return f"Error processing video: {str(e)}", gr.update(choices=[])
         
-        cap.release()
-        cv2.destroyAllWindows()
-        cv2.waitKey(1)
+        time.sleep(0.3)
         
         if not self.current_clips:
             return "No clips were created. Please check your parameters.", gr.update(choices=[])
@@ -260,6 +291,7 @@ class VideoEmotionAnnotator:
             if out is not None:
                 out.release()
             cv2.waitKey(1)
+            time.sleep(0.2)
     
     def load_clip(self, selected_clip):
         if not selected_clip or not self.current_clips:
@@ -274,7 +306,6 @@ class VideoEmotionAnnotator:
                     clip_path = clip['path']
                     if os.path.exists(clip_path):
                         print(f"Loading clip: {clip_path}")
-                        # Return absolute path for Gradio
                         return os.path.abspath(clip_path)
                     else:
                         print(f"Clip not found: {clip_path}")
@@ -383,38 +414,43 @@ css = """
 """
 
 def on_video_upload(video_file):
-    if video_file:
-        # Handle Gradio file object
-        if hasattr(video_file, 'name'):
-            video_path = video_file.name
-        elif isinstance(video_file, str):
-            video_path = video_file
-        else:
-            return (gr.update(visible=False), gr.update(maximum=999), gr.update(), gr.update(minimum=1, maximum=1, value=1, visible=True))
-        
-        # Copy to working directory and get info
-        working_path = annotator.copy_video_to_working_dir(video_path)
-        if not working_path:
-            return (gr.update(visible=False), gr.update(maximum=999), gr.update(), gr.update(minimum=1, maximum=1, value=1, visible=True))
-        
-        time.sleep(0.2)
-        
-        cap = cv2.VideoCapture(working_path)
-        if cap.isOpened():
-            fps = cap.get(cv2.CAP_PROP_FPS)
-            frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-            duration = frame_count / fps if fps > 0 else 0
-            cap.release()
-            cv2.destroyAllWindows()
-            
-            if duration > 0:
-                max_minutes = int(duration // 60)
-                return (
-                    gr.update(visible=True),
-                    gr.update(maximum=max_minutes),
-                    gr.update(),
-                    gr.update(minimum=1, maximum=max(1, int(duration // 60)), value=1, visible=True)
-                )
+    if not video_file:
+        return (gr.update(visible=False), gr.update(maximum=999), gr.update(), gr.update(minimum=1, maximum=1, value=1, visible=True))
+    
+    # Handle Gradio file object
+    if hasattr(video_file, 'name'):
+        video_path = video_file.name
+    elif isinstance(video_file, str):
+        video_path = video_file
+    else:
+        return (gr.update(visible=False), gr.update(maximum=999), gr.update(), gr.update(minimum=1, maximum=1, value=1, visible=True))
+    
+    # Copy to working directory and get info
+    working_path = annotator.copy_video_to_working_dir(video_path)
+    if not working_path:
+        return (gr.update(visible=False), gr.update(maximum=999), gr.update(), gr.update(minimum=1, maximum=1, value=1, visible=True))
+    
+    time.sleep(0.5)
+    
+    try:
+        with annotator.video_capture(working_path) as cap:
+            if cap.isOpened():
+                fps = cap.get(cv2.CAP_PROP_FPS)
+                frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+                duration = frame_count / fps if fps > 0 else 0
+                
+                if duration > 0:
+                    max_minutes = int(duration // 60)
+                    return (
+                        gr.update(visible=True),
+                        gr.update(maximum=max_minutes),
+                        gr.update(),
+                        gr.update(minimum=1, maximum=max(1, int(duration // 60)), value=1, visible=True)
+                    )
+    except Exception as e:
+        print(f"Error in video upload: {e}")
+    
+    time.sleep(0.3)
     
     return (
         gr.update(visible=False),
@@ -557,14 +593,15 @@ with gr.Blocks(css=css, title="Video Emotion Annotation Tool") as demo:
         
         if video_path and os.path.exists(video_path):
             # Copy to a temp location that Gradio can access
-            import tempfile
             temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4', dir=tempfile.gettempdir())
             temp_path = temp_file.name
             temp_file.close()
             
             try:
+                time.sleep(0.2)
                 shutil.copy2(video_path, temp_path)
                 print(f"Copied clip to temp location: {temp_path}")
+                time.sleep(0.2)
                 return (
                     temp_path,
                     False,
