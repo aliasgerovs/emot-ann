@@ -216,12 +216,25 @@ class VideoEmotionAnnotator:
                     if os.path.exists(clip_path):
                         try:
                             os.remove(clip_path)
-                            time.sleep(0.2)
-                        except:
+                            time.sleep(0.3)
+                        except Exception as remove_error:
+                            print(f"Could not remove existing clip, using timestamp: {remove_error}")
                             timestamp = int(time.time() * 1000)
                             clip_path = os.path.join(self.clips_dir, f"{self.participant_id}_clip_{timestamp}_{clip_num:03d}.mp4")
                     
+                    # Release the capture temporarily for ffmpeg to access the file
+                    cap.release()
+                    cv2.destroyAllWindows()
+                    cv2.waitKey(1)
+                    time.sleep(0.3)
+                    
                     success = self.create_clip(cap, frame_start, frame_end, clip_path, fps)
+                    
+                    # Reopen the capture for the next iteration
+                    time.sleep(0.3)
+                    cap = cv2.VideoCapture(self.working_video_path)
+                    if not cap.isOpened():
+                        print("Warning: Could not reopen video capture")
                     
                     if success and os.path.exists(clip_path):
                         time.sleep(0.2)
@@ -567,7 +580,7 @@ with gr.Blocks(css=css, title="Video Emotion Annotation Tool") as demo:
     with gr.Row():
         with gr.Column(scale=2):
             clip_selector = gr.Dropdown(label="Select Clip", choices=[], interactive=True)
-            clip_video = gr.Video(label="Current Clip", height=300, autoplay=False)
+            clip_video = gr.Video(label="Current Clip", height=300, autoplay=False, show_download_button=True)
         
         with gr.Column(scale=1):
             has_emotion = gr.Checkbox(label="NC (No Clear Emotion)", value=False)
@@ -664,6 +677,12 @@ if __name__ == "__main__":
     os.makedirs(annotator.clips_dir, exist_ok=True)
     os.makedirs(annotator.working_dir, exist_ok=True)
     
+    clips_abs = os.path.abspath(annotator.clips_dir)
+    working_abs = os.path.abspath(annotator.working_dir)
+    
+    print(f"\nClips directory (absolute): {clips_abs}")
+    print(f"Working directory (absolute): {working_abs}")
+    
     def get_local_ip():
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -687,41 +706,34 @@ if __name__ == "__main__":
     demo.queue(max_size=20, default_concurrency_limit=3, api_open=False)
     
     try:
-        print("Attempting to launch with share link...")
+        print("Attempting to launch...")
         demo.launch(
             share=True,
-            allowed_paths=[annotator.clips_dir, annotator.working_dir],
+            allowed_paths=[clips_abs, working_abs, os.getcwd()],
             server_name="0.0.0.0",
             server_port=port,
             show_error=True,
             max_threads=10,
             inbrowser=False,
             quiet=False,
-            show_api=False
+            show_api=False,
+            prevent_thread_lock=False
         )
     except Exception as e:
-        print(f"Share link failed: {e}")
-        print("\nTrying local network launch...")
+        print(f"Launch failed: {e}")
+        import traceback
+        traceback.print_exc()
+        print("\nTrying alternative launch...")
         try:
             demo.launch(
                 share=False,
-                allowed_paths=[annotator.clips_dir, annotator.working_dir],
+                allowed_paths=[clips_abs, working_abs, os.getcwd()],
                 server_name="0.0.0.0",
                 server_port=port,
                 show_error=True,
-                max_threads=10,
                 inbrowser=True,
                 quiet=False
             )
         except Exception as e2:
-            print(f"Local network launch failed: {e2}")
-            print("\nTrying localhost only...")
-            demo.launch(
-                share=False,
-                allowed_paths=[annotator.clips_dir, annotator.working_dir],
-                server_name="127.0.0.1",
-                server_port=port,
-                show_error=True,
-                inbrowser=True,
-                quiet=False
-            )
+            print(f"Alternative launch failed: {e2}")
+            traceback.print_exc()
