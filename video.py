@@ -1,5 +1,4 @@
 import gradio as gr
-import cv2
 import os
 import pandas as pd
 from datetime import datetime
@@ -7,8 +6,8 @@ import tempfile
 import shutil
 import time
 import gc
-import subprocess
 from contextlib import contextmanager
+from moviepy.editor import VideoFileClip
 
 class VideoEmotionAnnotator:
     def __init__(self):
@@ -40,16 +39,15 @@ class VideoEmotionAnnotator:
             print(f"Error cleaning up working files: {str(e)}")
     
     @contextmanager
-    def video_capture(self, path):
-        cap = None
+    def video_clip_context(self, path):
+        """Context manager for MoviePy VideoFileClip"""
+        clip = None
         try:
-            cap = cv2.VideoCapture(path)
-            yield cap
+            clip = VideoFileClip(path)
+            yield clip
         finally:
-            if cap is not None:
-                cap.release()
-            cv2.destroyAllWindows()
-            cv2.waitKey(1)
+            if clip is not None:
+                clip.close()
             time.sleep(0.2)
     
     def format_time(self, seconds):
@@ -98,12 +96,11 @@ class VideoEmotionAnnotator:
         
         try:
             time.sleep(0.3)
-            with self.video_capture(working_path) as cap:
-                if cap.isOpened():
-                    fps = cap.get(cv2.CAP_PROP_FPS)
-                    frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-                    duration = frame_count / fps if fps > 0 else 0
-                    return duration, fps, frame_count
+            with self.video_clip_context(working_path) as clip:
+                duration = clip.duration
+                fps = clip.fps
+                frame_count = int(duration * fps)
+                return duration, fps, frame_count
         except Exception as e:
             print(f"Error getting video info: {e}")
         
@@ -152,17 +149,12 @@ class VideoEmotionAnnotator:
         progress(0.15, desc="Reading video information...")
         
         fps = 0
-        frame_count = 0
         duration = 0
         
         try:
-            with self.video_capture(self.working_video_path) as cap:
-                if not cap.isOpened():
-                    return "Failed to open video file.", gr.update(choices=[])
-                
-                fps = cap.get(cv2.CAP_PROP_FPS)
-                frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-                duration = frame_count / fps if fps > 0 else 0
+            with self.video_clip_context(self.working_video_path) as clip:
+                fps = clip.fps
+                duration = clip.duration
         except Exception as e:
             print(f"Error reading video: {e}")
             return "Failed to read video file. Please try again.", gr.update(choices=[])
@@ -189,362 +181,224 @@ class VideoEmotionAnnotator:
         
         try:
             time.sleep(0.3)
-            with self.video_capture(self.working_video_path) as cap:
-                if not cap.isOpened():
-                    return "Failed to open video file.", gr.update(choices=[])
-                    
-                fps = cap.get(cv2.CAP_PROP_FPS)
-                start_frame = int(start_time * fps)
-                end_frame = int(end_time * fps)
-                interval_frames = int(interval * fps)
+            with self.video_clip_context(self.working_video_path) as video:
+                fps = video.fps
                 self.current_clips = []
                 clip_num = 1
                 
-                total_clips = len(range(start_frame, end_frame, interval_frames))
-                current_clip_idx = 0
+                # Calculate total number of clips
+                current_time = start_time
+                total_clips = 0
+                while current_time < end_time:
+                    total_clips += 1
+                    current_time += interval
                 
-                for frame_start in range(start_frame, end_frame, interval_frames):
-                    frame_end = min(frame_start + interval_frames, end_frame)
+                current_clip_idx = 0
+                current_time = start_time
+                
+                while current_time < end_time:
+                    clip_end_time = min(current_time + interval, end_time)
                     
-                    progress_val = 0.3 + (0.6 * (current_clip_idx / max(total_clips, 1)))
-                    progress(progress_val, desc=f"Creating clip {clip_num}/{total_clips}...")
-                    current_clip_idx += 1
+                    progress(
+                        0.3 + (0.65 * current_clip_idx / total_clips),
+                        desc=f"Extracting clip {clip_num}/{total_clips} ({self.format_time(current_time)} - {self.format_time(clip_end_time)})"
+                    )
                     
-                    clip_filename = f"{self.participant_id}_clip_{clip_num:03d}.mp4"
-                    clip_path = os.path.join(self.clips_dir, clip_filename)
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    clip_filename = f"clip_{self.participant_id}_{timestamp}_{clip_num:03d}.mp4"
+                    output_path = os.path.join(self.clips_dir, clip_filename)
                     
-                    if os.path.exists(clip_path):
-                        try:
-                            os.remove(clip_path)
-                            time.sleep(0.3)
-                        except Exception as remove_error:
-                            print(f"Could not remove existing clip, using timestamp: {remove_error}")
-                            timestamp = int(time.time() * 1000)
-                            clip_path = os.path.join(self.clips_dir, f"{self.participant_id}_clip_{timestamp}_{clip_num:03d}.mp4")
-                    
-                    # Release the capture temporarily for ffmpeg to access the file
-                    cap.release()
-                    cv2.destroyAllWindows()
-                    cv2.waitKey(1)
-                    time.sleep(0.3)
-                    
-                    success = self.create_clip(cap, frame_start, frame_end, clip_path, fps)
-                    
-                    # Reopen the capture for the next iteration
-                    time.sleep(0.3)
-                    cap = cv2.VideoCapture(self.working_video_path)
-                    if not cap.isOpened():
-                        print("Warning: Could not reopen video capture")
-                    
-                    if success and os.path.exists(clip_path):
+                    try:
+                        # Extract subclip using MoviePy
+                        subclip = video.subclip(current_time, clip_end_time)
+                        subclip.write_videofile(
+                            output_path,
+                            codec='libx264',
+                            audio_codec='aac',
+                            temp_audiofile=os.path.join(self.working_dir, f'temp_audio_{clip_num}.m4a'),
+                            remove_temp=True,
+                            logger=None,  # Suppress MoviePy's verbose output
+                            verbose=False
+                        )
+                        subclip.close()
+                        
                         time.sleep(0.2)
-                        try:
-                            with self.video_capture(clip_path) as test_cap:
-                                if test_cap.isOpened():
-                                    self.current_clips.append({
-                                        'path': clip_path,
-                                        'number': clip_num,
-                                        'start_time': frame_start/fps,
-                                        'end_time': frame_end/fps
-                                    })
-                                    print(f"Clip {clip_num} created and verified: {clip_path}")
-                                    clip_num += 1
-                                else:
-                                    print(f"Warning: Clip {clip_num} was created but cannot be opened: {clip_path}")
-                        except Exception as e:
-                            print(f"Error verifying clip {clip_num}: {e}")
+                        
+                        if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
+                            clip_label = f"Clip {clip_num:03d} ({self.format_time(current_time)} - {self.format_time(clip_end_time)})"
+                            self.current_clips.append({
+                                'label': clip_label,
+                                'path': output_path,
+                                'start': current_time,
+                                'end': clip_end_time,
+                                'number': clip_num
+                            })
+                            print(f"Successfully saved clip to: {output_path}")
+                        else:
+                            print(f"Warning: Clip file not created or is empty: {output_path}")
                     
-                    time.sleep(0.1)
+                    except Exception as e:
+                        print(f"Error creating clip {clip_num}: {str(e)}")
+                    
+                    clip_num += 1
+                    current_clip_idx += 1
+                    current_time += interval
+                    
+                    # Clean up memory
+                    gc.collect()
         
         except Exception as e:
-            print(f"Error processing video: {e}")
-            return f"Error processing video: {str(e)}", gr.update(choices=[])
+            print(f"Error during clip extraction: {str(e)}")
+            return f"Failed to process video: {str(e)}", gr.update(choices=[])
         
-        gc.collect()
-        
-        progress(1.0, desc="Finalizing...")
-        time.sleep(0.3)
+        progress(0.95, desc="Finalizing...")
+        time.sleep(0.5)
         
         if not self.current_clips:
-            return "No clips were created. Please check your parameters.", gr.update(choices=[])
+            return "No clips were successfully created. Please try again.", gr.update(choices=[])
         
-        clip_options = [f"Clip {clip['number']:03d} ({self.format_time(clip['start_time'])} - {self.format_time(clip['end_time'])})" 
-                       for clip in self.current_clips]
-        return f"{time_range_msg}\n\nCreated {len(self.current_clips)} clips successfully!", gr.update(choices=clip_options, value=clip_options[0] if clip_options else None)
-    
-    def create_clip(self, cap, start_frame, end_frame, output_path, fps):
-        try:
-            start_time_sec = start_frame / fps
-            duration_sec = (end_frame - start_frame) / fps
-            
-            # Use ffmpeg-python if available, otherwise fall back to subprocess
-            try:
-                import ffmpeg
-                (
-                    ffmpeg
-                    .input(self.working_video_path, ss=start_time_sec, t=duration_sec)
-                    .output(output_path, c='copy', loglevel='error')
-                    .overwrite_output()
-                    .run()
-                )
-                print(f"Successfully created clip using ffmpeg: {output_path}")
-                return True
-            except ImportError:
-                # Fall back to subprocess if ffmpeg-python not installed
-                import subprocess
-                cmd = [
-                    'ffmpeg',
-                    '-ss', str(start_time_sec),
-                    '-i', self.working_video_path,
-                    '-t', str(duration_sec),
-                    '-c', 'copy',
-                    '-y',
-                    output_path,
-                    '-loglevel', 'error'
-                ]
-                
-                result = subprocess.run(cmd, capture_output=True, text=True)
-                if result.returncode == 0:
-                    print(f"Successfully created clip using ffmpeg subprocess: {output_path}")
-                    return True
-                else:
-                    print(f"FFmpeg error: {result.stderr}")
-                    return self.create_clip_opencv_fallback(cap, start_frame, end_frame, output_path, fps)
-                    
-        except Exception as e:
-            print(f"Error creating clip with ffmpeg: {str(e)}")
-            return self.create_clip_opencv_fallback(cap, start_frame, end_frame, output_path, fps)
-    
-    def create_clip_opencv_fallback(self, cap, start_frame, end_frame, output_path, fps):
-        out = None
-        try:
-            width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-            height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-            
-            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-            out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
-            
-            if not out.isOpened():
-                fourcc = cv2.VideoWriter_fourcc(*'avc1')
-                out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
-            
-            if not out.isOpened():
-                output_path_avi = output_path.replace('.mp4', '.avi')
-                fourcc = cv2.VideoWriter_fourcc(*'XVID')
-                out = cv2.VideoWriter(output_path_avi, fourcc, fps, (width, height))
-                if out.isOpened():
-                    output_path = output_path_avi
-            
-            if not out.isOpened():
-                print(f"Error: Could not create VideoWriter for {output_path}")
-                return False
-            
-            cap.set(cv2.CAP_PROP_POS_FRAMES, start_frame)
-            
-            frames_written = 0
-            current_frame = start_frame
-            
-            while current_frame < end_frame:
-                ret, frame = cap.read()
-                if not ret:
-                    break
-                
-                out.write(frame)
-                frames_written += 1
-                current_frame += 1
-            
-            print(f"Successfully wrote {frames_written} frames (no audio): {output_path}")
-            return True
-            
-        except Exception as e:
-            print(f"Error creating clip with OpenCV: {str(e)}")
-            return False
-        finally:
-            if out is not None:
-                out.release()
-            cv2.waitKey(1)
-            time.sleep(0.2)
-    
-    def load_clip(self, selected_clip):
-        if not selected_clip or not self.current_clips:
+        clip_choices = [clip['label'] for clip in self.current_clips]
+        
+        progress(1.0, desc="Complete!")
+        
+        success_msg = f"""✅ **Video processed successfully!**
+
+{time_range_msg}
+
+📊 **Results:**
+- Created {len(self.current_clips)} clips
+- Clip interval: {interval} seconds
+- Ready for annotation
+
+Select a clip below to begin annotating."""
+        
+        return success_msg, gr.update(choices=clip_choices, value=clip_choices[0] if clip_choices else None)
+
+    def load_clip(self, clip_label):
+        if not clip_label:
             return None
         
-        try:
-            clip_num_str = selected_clip.split()[1]
-            clip_num = int(clip_num_str)
-            
-            for clip in self.current_clips:
-                if clip['number'] == clip_num:
-                    clip_path = clip['path']
-                    if os.path.exists(clip_path):
-                        print(f"Loading clip from clips_dir: {clip_path}")
-                        return os.path.abspath(clip_path)
-                    else:
-                        print(f"Clip not found: {clip_path}")
-                        return None
-        except (ValueError, IndexError) as e:
-            print(f"Error parsing clip selection: {e}")
+        for clip in self.current_clips:
+            if clip['label'] == clip_label:
+                if os.path.exists(clip['path']):
+                    return clip['path']
+        
         return None
     
-    def save_annotation(self, selected_clip, has_emotion, sadness_intensity, anger_intensity, pleasure_intensity, task_type, annotator_name):
-        if not selected_clip:
-            return "Please select a clip first."
+    def save_annotation(self, clip_label, has_no_emotion, sadness, anger, pleasure, task_type, annotator_name):
+        if not clip_label:
+            return "⚠️ Please select a clip first."
         
-        try:
-            clip_num = None
-            clip_data = None
-            
-            clip_num_str = selected_clip.split()[1]
-            clip_num = int(clip_num_str)
-            clip_data = next((clip for clip in self.current_clips if clip['number'] == clip_num), None)
-            
-            if not clip_data:
-                return "Clip not found."
-        except (ValueError, IndexError):
-            return "Invalid clip selection."
+        if not task_type or not annotator_name:
+            return "⚠️ Please fill in Task Type and Annotator Name."
         
-        self.annotations = [ann for ann in self.annotations if ann['clip_number'] != clip_num]
+        clip_info = None
+        for clip in self.current_clips:
+            if clip['label'] == clip_label:
+                clip_info = clip
+                break
+        
+        if not clip_info:
+            return "⚠️ Clip not found."
         
         annotation = {
-            'participant_id': self.participant_id,
-            'task_type': task_type,
-            'annotator_name': annotator_name,
-            'clip_number': clip_num,
-            'start_time': clip_data['start_time'],
-            'end_time': clip_data['end_time'],
-            'duration': clip_data['end_time'] - clip_data['start_time'],
-            'no_clear_emotion': has_emotion,
-            'sadness_intensity': sadness_intensity if not has_emotion else 0,
-            'anger_intensity': anger_intensity if not has_emotion else 0,
-            'pleasure_intensity': pleasure_intensity if not has_emotion else 0,
-            'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            'ParticipantID': self.participant_id,
+            'TaskType': task_type,
+            'AnnotatorName': annotator_name,
+            'ClipNumber': clip_info['number'],
+            'StartTime': self.format_time(clip_info['start']),
+            'EndTime': self.format_time(clip_info['end']),
+            'NC': 1 if has_no_emotion else 0,
+            'Sadness': 0 if has_no_emotion else sadness,
+            'Anger': 0 if has_no_emotion else anger,
+            'Pleasure': 0 if has_no_emotion else pleasure,
+            'Timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         }
         
-        self.annotations.append(annotation)
+        existing_idx = None
+        for idx, ann in enumerate(self.annotations):
+            if (ann['ParticipantID'] == annotation['ParticipantID'] and 
+                ann['ClipNumber'] == annotation['ClipNumber'] and
+                ann['TaskType'] == annotation['TaskType'] and
+                ann['AnnotatorName'] == annotation['AnnotatorName']):
+                existing_idx = idx
+                break
         
-        return f"Annotation saved for Clip {clip_num:03d}. Total annotated: {len(self.annotations)}/{len(self.current_clips)}"
+        if existing_idx is not None:
+            self.annotations[existing_idx] = annotation
+            return f"✅ **Annotation updated!** (Clip {clip_info['number']}/{len(self.current_clips)})"
+        else:
+            self.annotations.append(annotation)
+            return f"✅ **Annotation saved!** ({len(self.annotations)}/{len(self.current_clips)} clips annotated)"
     
     def export_csv(self):
         if not self.annotations:
-            return None, "No annotations to export."
+            return None, "⚠️ No annotations to export. Please annotate some clips first."
         
-        df = pd.DataFrame(self.annotations)
-        df = df.sort_values('clip_number')
+        try:
+            df = pd.DataFrame(self.annotations)
+            df = df.sort_values(['ParticipantID', 'TaskType', 'ClipNumber'])
+            
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"annotations_{self.participant_id}_{timestamp}.csv"
+            output_path = os.path.join(self.clips_dir, filename)
+            
+            df.to_csv(output_path, index=False)
+            
+            return output_path, f"✅ **Exported successfully!** ({len(self.annotations)} annotations saved to {filename})"
         
-        filename = f"{self.participant_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
-        df.to_csv(filename, index=False)
-        
-        return filename, f"Exported {len(self.annotations)} annotations to {filename}"
+        except Exception as e:
+            return None, f"❌ Export failed: {str(e)}"
 
 annotator = VideoEmotionAnnotator()
 
+def on_video_upload(video):
+    if not video:
+        return "Please upload a video.", 0, 0, 1
+    
+    duration, fps, frame_count = annotator.get_video_info(video.name if hasattr(video, 'name') else video)
+    
+    if duration == 0:
+        return "⚠️ Could not read video file. Please try a different format.", 0, 0, 1
+    
+    total_minutes = int(duration // 60)
+    remaining_seconds = int(duration % 60)
+    
+    return (
+        f"✅ **Video uploaded successfully!**\n\n📹 Duration: {total_minutes}:{remaining_seconds:02d} ({duration:.1f}s)\n🎞️ Frame rate: {fps:.2f} fps",
+        0,
+        0,
+        min(4, max(1, total_minutes))
+    )
+
 css = """
-#main_container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 20px;
+#process_btn, #save_btn, #export_btn {
+    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    color: white;
+    font-weight: 600;
 }
-
-.gradio-container {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-}
-
-#title {
-    text-align: center;
-    color: #2c3e50;
-    margin-bottom: 30px;
-    font-weight: 300;
-}
-
 .step-header {
-    background: linear-gradient(90deg, #3498db, #2980b9);
+    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
     color: white;
     padding: 15px;
-    border-radius: 8px;
-    margin: 20px 0 15px 0;
-    font-weight: 500;
-}
-
-#process_btn, #save_btn, #export_btn {
-    background: linear-gradient(90deg, #27ae60, #229954) !important;
-    border: none !important;
-    color: white !important;
-    font-weight: 500 !important;
-    padding: 12px 24px !important;
-    border-radius: 6px !important;
-}
-
-#process_btn:hover, #save_btn:hover, #export_btn:hover {
-    background: linear-gradient(90deg, #229954, #1e8449) !important;
-}
-
-.video-preview {
-    border-radius: 8px;
-    overflow: hidden;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border-radius: 10px;
+    margin: 20px 0 10px 0;
+    font-size: 18px;
+    font-weight: 600;
+    text-align: center;
 }
 """
 
-def on_video_upload(video_file):
-    if not video_file:
-        return (gr.update(visible=False), gr.update(maximum=999), gr.update(), gr.update(minimum=1, maximum=1, value=1, visible=True))
+with gr.Blocks(css=css, title="Video Emotion Annotator") as demo:
+    gr.HTML("<div style='text-align: center; padding: 20px;'><h1>🎬 Video Emotion Annotation Tool</h1><p>Process videos, annotate emotions, and export results</p></div>")
     
-    try:
-        if hasattr(video_file, 'name'):
-            video_path = video_file.name
-        elif isinstance(video_file, str):
-            video_path = video_file
-        else:
-            return (gr.update(visible=False), gr.update(maximum=999), gr.update(), gr.update(minimum=1, maximum=1, value=1, visible=True))
-        
-        print(f"Video uploaded from Gradio temp: {video_path}")
-        
-        working_path = annotator.copy_video_to_working_dir(video_path)
-        if not working_path:
-            print("Failed to copy video to working directory")
-            return (gr.update(visible=False), gr.update(maximum=999), gr.update(), gr.update(minimum=1, maximum=1, value=1, visible=True))
-        
-        print(f"Video copied to working directory: {working_path}")
-        time.sleep(0.5)
-        
-        with annotator.video_capture(working_path) as cap:
-            if cap.isOpened():
-                fps = cap.get(cv2.CAP_PROP_FPS)
-                frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-                duration = frame_count / fps if fps > 0 else 0
-                
-                print(f"Video info - Duration: {duration}s, FPS: {fps}, Frames: {frame_count}")
-                
-                if duration > 0:
-                    max_minutes = int(duration // 60)
-                    return (
-                        gr.update(visible=True),
-                        gr.update(maximum=max_minutes),
-                        gr.update(),
-                        gr.update(minimum=1, maximum=max(1, int(duration // 60)), value=1, visible=True)
-                    )
-    except Exception as e:
-        print(f"Error in video upload: {e}")
-        import traceback
-        traceback.print_exc()
+    gr.HTML("<div style='max-width: 1400px; margin: 0 auto;'>")
     
-    time.sleep(0.3)
-    
-    return (
-        gr.update(visible=False),
-        gr.update(maximum=999),
-        gr.update(),
-        gr.update(minimum=1, maximum=1, value=1, visible=True)
-    )
-
-with gr.Blocks(css=css, title="Video Emotion Annotation Tool") as demo:
-    gr.HTML("<div id='main_container'>")
-    
-    gr.Markdown("# 🎬 Video Emotion Annotation Tool", elem_id="title")
+    gr.HTML("<div class='step-header'>⚙️ Step 1: Upload & Configure</div>")
     
     with gr.Row():
         with gr.Column(scale=3):
-            gr.HTML("<div class='step-header'>📁 Step 1: Upload & Configure</div>")
             
             with gr.Row():
                 video_input = gr.Video(
