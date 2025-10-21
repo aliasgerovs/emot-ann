@@ -6,6 +6,7 @@ from datetime import datetime
 import tempfile
 import shutil
 import time
+import gc
 from contextlib import contextmanager
 
 class VideoEmotionAnnotator:
@@ -103,9 +104,11 @@ class VideoEmotionAnnotator:
         
         return 0, 0, 0
 
-    def process_video(self, video_file, participant_id, start_time, interval, process_minutes):
+    def process_video(self, video_file, participant_id, start_time, interval, process_minutes, progress=gr.Progress()):
         if not video_file or not participant_id:
             return "Please upload a video and provide a participant ID.", gr.update(choices=[])
+        
+        progress(0, desc="Starting video processing...")
         
         # Handle Gradio file object
         if hasattr(video_file, 'name'):
@@ -116,6 +119,8 @@ class VideoEmotionAnnotator:
             return "Invalid video file.", gr.update(choices=[])
             
         self.participant_id = participant_id
+        
+        progress(0.05, desc="Cleaning up old files...")
         
         # Clean up old clips
         for clip in self.current_clips:
@@ -134,12 +139,16 @@ class VideoEmotionAnnotator:
             except Exception as e:
                 print(f"Could not remove old working video: {str(e)}")
         
+        progress(0.1, desc="Copying video to working directory...")
+        
         # Copy video to working directory
         self.working_video_path = self.copy_video_to_working_dir(video_path)
         if not self.working_video_path:
             return "Failed to prepare video file. Please try again.", gr.update(choices=[])
         
         time.sleep(0.5)
+        
+        progress(0.15, desc="Reading video information...")
         
         # Get video info with proper cleanup
         fps = 0
@@ -163,6 +172,8 @@ class VideoEmotionAnnotator:
         if duration == 0:
             return "Failed to read video file. Please try again.", gr.update(choices=[])
         
+        progress(0.25, desc="Calculating clip parameters...")
+        
         requested_seconds = (process_minutes or 0) * 60
         if requested_seconds <= 0:
             requested_seconds = 240
@@ -173,6 +184,8 @@ class VideoEmotionAnnotator:
         
         time_range_msg = f"Processing from {self.format_time(start_time)} to {self.format_time(end_time)} (duration: {self.format_time(end_time - start_time)})"
         self.annotations = []
+        
+        progress(0.3, desc="Starting clip extraction...")
         
         # Process clips with proper cleanup
         try:
@@ -188,8 +201,17 @@ class VideoEmotionAnnotator:
                 self.current_clips = []
                 clip_num = 1
                 
+                # Calculate total clips for progress
+                total_clips = len(range(start_frame, end_frame, interval_frames))
+                current_clip_idx = 0
+                
                 for frame_start in range(start_frame, end_frame, interval_frames):
                     frame_end = min(frame_start + interval_frames, end_frame)
+                    
+                    # Update progress
+                    progress_val = 0.3 + (0.6 * (current_clip_idx / max(total_clips, 1)))
+                    progress(progress_val, desc=f"Creating clip {clip_num}/{total_clips}...")
+                    current_clip_idx += 1
                     
                     clip_filename = f"{self.participant_id}_clip_{clip_num:03d}.mp4"
                     clip_path = os.path.join(self.clips_dir, clip_filename)
@@ -230,6 +252,10 @@ class VideoEmotionAnnotator:
             print(f"Error processing video: {e}")
             return f"Error processing video: {str(e)}", gr.update(choices=[])
         
+        # Force garbage collection to free memory
+        gc.collect()
+        
+        progress(1.0, desc="Finalizing...")
         time.sleep(0.3)
         
         if not self.current_clips:
@@ -581,7 +607,9 @@ with gr.Blocks(css=css, title="Video Emotion Annotation Tool") as demo:
     process_btn.click(
         annotator.process_video,
         inputs=[video_input, participant_id, start_time, interval, process_minutes],
-        outputs=[process_status, clip_selector]
+        outputs=[process_status, clip_selector],
+        show_progress="full",  # Show progress bar
+        api_name="process_video"  # Enable API access
     )
     
     def load_clip_and_reset_filters(selected_clip):
@@ -649,8 +677,18 @@ if __name__ == "__main__":
     os.makedirs(annotator.clips_dir, exist_ok=True)
     os.makedirs(annotator.working_dir, exist_ok=True)
     
-    # Launch with allowed paths
+    # Launch with configurations to prevent connection issues
+    demo.queue(
+        max_size=10,  # Limit queue size
+        default_concurrency_limit=2  # Limit concurrent users
+    )
+    
     demo.launch(
         share=True,
-        allowed_paths=[annotator.clips_dir, annotator.working_dir]
+        allowed_paths=[annotator.clips_dir, annotator.working_dir],
+        server_name="0.0.0.0",  # Listen on all interfaces
+        server_port=7860,  # Explicit port
+        max_file_size=500 * 1024 * 1024,  # 500MB max file size
+        show_error=True,  # Show detailed errors
+        max_threads=10  # Limit threads
     )
