@@ -6,7 +6,7 @@ import shutil
 import time
 import gc
 from contextlib import contextmanager
-from moviepy.video.io.VideoFileClip import VideoFileClip
+from moviepy.editor import VideoFileClip
 
 class VideoEmotionAnnotator:
     def __init__(self):
@@ -28,20 +28,6 @@ class VideoEmotionAnnotator:
         self.participant_id = ""
         self.uploaded_video_path = None
         
-    def cleanup_directory(self, directory):
-        """Clean up files in a directory"""
-        try:
-            if os.path.exists(directory):
-                for file in os.listdir(directory):
-                    try:
-                        file_path = os.path.join(directory, file)
-                        if os.path.isfile(file_path):
-                            os.remove(file_path)
-                    except Exception as e:
-                        print(f"Could not remove {file_path}: {e}")
-        except Exception as e:
-            print(f"Error cleaning directory {directory}: {e}")
-    
     @contextmanager
     def video_clip_context(self, path):
         """Context manager for MoviePy VideoFileClip"""
@@ -61,39 +47,60 @@ class VideoEmotionAnnotator:
         return f"{minutes:02d}:{secs:02d}"
     
     def save_uploaded_video(self, gradio_video_path):
-        """Save uploaded video directly to current working directory"""
-        try:
-            if not gradio_video_path or not os.path.exists(gradio_video_path):
-                print(f"Video path invalid or does not exist: {gradio_video_path}")
-                return None
-            
-            # Generate unique filename in current directory
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            original_ext = os.path.splitext(gradio_video_path)[1] or '.mp4'
-            new_filename = f"uploaded_video_{timestamp}{original_ext}"
-            
-            # Save directly to current working directory (not subdirectory)
-            destination = os.path.join(self.base_dir, new_filename)
-            
-            print(f"Copying video from: {gradio_video_path}")
-            print(f"Saving to current directory: {destination}")
-            
-            # Copy file
-            shutil.copy2(gradio_video_path, destination)
-            
-            if os.path.exists(destination):
-                size = os.path.getsize(destination)
-                print(f"✓ Video saved: {new_filename} ({size} bytes)")
-                return destination
-            else:
-                print("✗ Failed to save video")
-                return None
+        """Save uploaded video directly to current working directory with retry logic"""
+        max_retries = 5
+        retry_delay = 0.5
+        
+        for attempt in range(max_retries):
+            try:
+                if not gradio_video_path or not os.path.exists(gradio_video_path):
+                    print(f"Video path invalid or does not exist: {gradio_video_path}")
+                    return None
                 
-        except Exception as e:
-            print(f"Error saving uploaded video: {e}")
-            import traceback
-            traceback.print_exc()
-            return None
+                # Generate unique filename in current directory
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                original_ext = os.path.splitext(gradio_video_path)[1] or '.mp4'
+                new_filename = f"uploaded_video_{timestamp}{original_ext}"
+                
+                # Save directly to current working directory
+                destination = os.path.join(self.base_dir, new_filename)
+                
+                print(f"Attempt {attempt + 1}/{max_retries}: Copying video")
+                print(f"  From: {gradio_video_path}")
+                print(f"  To: {destination}")
+                
+                # Wait a bit to let Gradio release the file
+                time.sleep(retry_delay * (attempt + 1))
+                
+                # Try to copy using binary read/write to avoid file locks
+                with open(gradio_video_path, 'rb') as src:
+                    with open(destination, 'wb') as dst:
+                        # Copy in chunks
+                        while True:
+                            chunk = src.read(1024 * 1024)  # 1MB chunks
+                            if not chunk:
+                                break
+                            dst.write(chunk)
+                
+                # Verify the file was created
+                if os.path.exists(destination):
+                    size = os.path.getsize(destination)
+                    print(f"✓ Video saved: {new_filename} ({size} bytes)")
+                    return destination
+                else:
+                    print("✗ Failed to save video (file not created)")
+                    
+            except Exception as e:
+                print(f"✗ Attempt {attempt + 1} failed: {e}")
+                if attempt < max_retries - 1:
+                    print(f"  Retrying in {retry_delay * (attempt + 2)} seconds...")
+                    time.sleep(retry_delay)
+                else:
+                    print("  All retry attempts failed")
+                    import traceback
+                    traceback.print_exc()
+        
+        return None
     
     def get_video_info(self, video_path):
         """Get video information"""
@@ -132,10 +139,10 @@ class VideoEmotionAnnotator:
         
         progress(0.05, desc="Saving uploaded video to current directory...")
         
-        # Save the uploaded video to current directory
+        # Save the uploaded video to current directory with retry logic
         self.uploaded_video_path = self.save_uploaded_video(gradio_video_path)
         if not self.uploaded_video_path:
-            return "Failed to save uploaded video. Please try again.", gr.update(choices=[])
+            return "Failed to save uploaded video after multiple attempts. Please try again.", gr.update(choices=[])
         
         progress(0.1, desc="Cleaning up old clips...")
         
@@ -251,8 +258,6 @@ class VideoEmotionAnnotator:
                     
                     except Exception as e:
                         print(f"✗ Error: {e}")
-                        import traceback
-                        traceback.print_exc()
                     
                     clip_num += 1
                     current_clip_idx += 1
@@ -381,31 +386,31 @@ def on_video_upload(video):
     if not video:
         return "Please upload a video.", 0, 0, 1
     
-    # Save video immediately to current directory
+    # Just get basic info, don't save yet (will save when processing)
     video_path = video if isinstance(video, str) else (video.name if hasattr(video, 'name') else None)
     
     if not video_path:
         return "Invalid video file.", 0, 0, 1
     
-    saved_path = annotator.save_uploaded_video(video_path)
-    
-    if not saved_path:
-        return "⚠️ Could not save video file. Please try again.", 0, 0, 1
-    
-    duration, fps, frame_count = annotator.get_video_info(saved_path)
-    
-    if duration == 0:
-        return "⚠️ Could not read video file. Please try a different format.", 0, 0, 1
-    
-    total_minutes = int(duration // 60)
-    remaining_seconds = int(duration % 60)
-    
-    return (
-        f"✅ **Video uploaded and saved!**\n\n📹 Duration: {total_minutes}:{remaining_seconds:02d} ({duration:.1f}s)\n🎞️ Frame rate: {fps:.2f} fps\n📁 Saved as: `{os.path.basename(saved_path)}`",
-        0,
-        0,
-        min(4, max(1, total_minutes))
-    )
+    # Try to get duration without saving
+    try:
+        duration, fps, _ = annotator.get_video_info(video_path)
+        
+        if duration == 0:
+            return "⚠️ Could not read video file. Please try a different format.", 0, 0, 1
+        
+        total_minutes = int(duration // 60)
+        remaining_seconds = int(duration % 60)
+        
+        return (
+            f"✅ **Video uploaded!**\n\n📹 Duration: {total_minutes}:{remaining_seconds:02d} ({duration:.1f}s)\n🎞️ Frame rate: {fps:.2f} fps\n\n💡 Click 'Process Video' to start",
+            0,
+            0,
+            min(4, max(1, total_minutes))
+        )
+    except Exception as e:
+        print(f"Error reading video on upload: {e}")
+        return "✅ **Video uploaded!** Click 'Process Video' to continue.", 0, 0, 1
 
 css = """
 #process_btn, #save_btn, #export_btn {
