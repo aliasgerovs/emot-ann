@@ -6,7 +6,7 @@ import shutil
 import time
 import gc
 from contextlib import contextmanager
-from moviepy.editor import VideoFileClip
+from moviepy.video.io.VideoFileClip import VideoFileClip
 
 class VideoEmotionAnnotator:
     def __init__(self):

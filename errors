@@ -18,17 +18,7 @@ Temporary files in: C:\Users\Team\Desktop\Annotation_Video\emot-ann\working
 * Running on local URL:  http://0.0.0.0:7860
 
 Could not create share link. Please check your internet connection or our status page: https://status.gradio.app.
-Copying video from: C:\Users\Team\AppData\Local\Temp\gradio\47f6eb1c488e0bb4bdaeda7aaa2821eeb1df10544420362c4ba9f4aa652c9f52\working_MEF002_Part1.MP4
-Saving to current directory: C:\Users\Team\Desktop\Annotation_Video\emot-ann\uploaded_video_20251021_180516.MP4
-Error saving uploaded video: [WinError 32] The process cannot access the file because it is being used by another process
-Traceback (most recent call last):
-  File "C:\Users\Team\Desktop\Annotation_Video\emot-ann\video.py", line 82, in save_uploaded_video
-    shutil.copy2(gradio_video_path, destination)
-    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\shutil.py", line 453, in copy2
-    _winapi.CopyFile2(src_, dst_, flags)
-    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
-PermissionError: [WinError 32] The process cannot access the file because it is being used by another process
+Opening video: C:\Users\Team\AppData\Local\Temp\gradio\47f6eb1c488e0bb4bdaeda7aaa2821eeb1df10544420362c4ba9f4aa652c9f52\working_MEF002_Part1.MP4
 ERROR:    Exception in ASGI application
 Traceback (most recent call last):
   File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\uvicorn\protocols\http\h11_impl.py", line 403, in run_asgi
@@ -101,3 +91,55 @@ Traceback (most recent call last):
   File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\anyio\_backends\_asyncio.py", line 976, in run
     result = context.run(func, *args)
 PermissionError: [Errno 13] Permission denied: 'C:\\Users\\Team\\AppData\\Local\\Temp\\gradio\\47f6eb1c488e0bb4bdaeda7aaa2821eeb1df10544420362c4ba9f4aa652c9f52\\working_MEF002_Part1.MP4'
+Error getting video info: Error passing `ffmpeg -i` command output:
+
+[in#0 @ 000002164a041ac0] Error opening input: Permission denied
+Error opening input file C:\Users\Team\AppData\Local\Temp\gradio\47f6eb1c488e0bb4bdaeda7aaa2821eeb1df10544420362c4ba9f4aa652c9f52\working_MEF002_Part1.MP4.
+Error opening input files: Permission denied
+
+Traceback (most recent call last):
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\moviepy\video\io\ffmpeg_reader.py", line 904, in ffmpeg_parse_infos
+    ).parse()
+      ~~~~~^^
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\moviepy\video\io\ffmpeg_reader.py", line 606, in parse
+    if stream["stream_type"] not in self._default_streams:
+       ~~~~~~^^^^^^^^^^^^^^^
+TypeError: 'NoneType' object is not subscriptable
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\Team\Desktop\Annotation_Video\emot-ann\video.py", line 111, in get_video_info
+    with self.video_clip_context(video_path) as clip:
+         ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "C:\Users\Team\Desktop\Annotation_Video\emot-ann\video.py", line 37, in video_clip_context
+    clip = VideoFileClip(path)
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\decorator.py", line 235, in fun
+    return caller(func, *(extras + args), **kw)
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\moviepy\decorators.py", line 102, in wrapper
+    return func(*new_args, **new_kwargs)
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\moviepy\video\io\VideoFileClip.py", line 109, in __init__
+    self.reader = FFMPEG_VideoReader(
+                  ~~~~~~~~~~~~~~~~~~^
+        filename,
+        ^^^^^^^^^
+    ...<4 lines>...
+        fps_source=fps_source,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\moviepy\video\io\ffmpeg_reader.py", line 35, in __init__
+    infos = ffmpeg_parse_infos(
+        filename,
+    ...<3 lines>...
+        print_infos=print_infos,
+    )
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\moviepy\video\io\ffmpeg_reader.py", line 910, in ffmpeg_parse_infos
+    raise IOError(f"Error passing `ffmpeg -i` command output:\n\n{infos}") from exc
+OSError: Error passing `ffmpeg -i` command output:
+
+[in#0 @ 000002164a041ac0] Error opening input: Permission denied
+Error opening input file C:\Users\Team\AppData\Local\Temp\gradio\47f6eb1c488e0bb4bdaeda7aaa2821eeb1df10544420362c4ba9f4aa652c9f52\working_MEF002_Part1.MP4.
+Error opening input files: Permission denied
