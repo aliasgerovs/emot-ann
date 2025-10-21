@@ -1,106 +1,103 @@
-PS C:\Users\team\Desktop\Annotation_Emotion\emot-ann> python3 .\video.py
-Using clips directory: C:\Users\team\Desktop\Annotation_Emotion\emot-ann\annotation_clips
-Using working directory: C:\Users\team\Desktop\Annotation_Emotion\emot-ann\annotation_working
-* Running on local URL:  http://127.0.0.1:7860
-* To create a public link, set `share=True` in `launch()`.
+PS C:\Users\Team\Desktop\Annotation_Video\emot-ann> python3 .\video.py
+Current working directory: C:\Users\Team\Desktop\Annotation_Video\emot-ann
+Clips will be saved to: C:\Users\Team\Desktop\Annotation_Video\emot-ann\clips
+Temporary files in: C:\Users\Team\Desktop\Annotation_Video\emot-ann\working
+
+============================================================
+🎬 VIDEO EMOTION ANNOTATION TOOL
+============================================================
+📁 Current Directory: C:\Users\Team\Desktop\Annotation_Video\emot-ann
+📁 Clips Folder: clips/
+📁 Working Folder: working/
+============================================================
+
+🌐 Local URL: http://localhost:7860
+🌐 Network URL: http://128.173.135.117:7860
+============================================================
+
+* Running on local URL:  http://0.0.0.0:7860
+
+Could not create share link. Please check your internet connection or our status page: https://status.gradio.app.
+Copying video from: C:\Users\Team\AppData\Local\Temp\gradio\47f6eb1c488e0bb4bdaeda7aaa2821eeb1df10544420362c4ba9f4aa652c9f52\working_MEF002_Part1.MP4
+Saving to current directory: C:\Users\Team\Desktop\Annotation_Video\emot-ann\uploaded_video_20251021_180516.MP4
+Error saving uploaded video: [WinError 32] The process cannot access the file because it is being used by another process
+Traceback (most recent call last):
+  File "C:\Users\Team\Desktop\Annotation_Video\emot-ann\video.py", line 82, in save_uploaded_video
+    shutil.copy2(gradio_video_path, destination)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\shutil.py", line 453, in copy2
+    _winapi.CopyFile2(src_, dst_, flags)
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+PermissionError: [WinError 32] The process cannot access the file because it is being used by another process
 ERROR:    Exception in ASGI application
 Traceback (most recent call last):
-  File "C:\Users\team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\uvicorn\protocols\http\h11_impl.py", line 403, in run_asgi
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\uvicorn\protocols\http\h11_impl.py", line 403, in run_asgi
     result = await app(  # type: ignore[func-returns-value]
              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
         self.scope, self.receive, self.send
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     )
     ^
-  File "C:\Users\team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\uvicorn\middleware\proxy_headers.py", line 60, in __call__
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\uvicorn\middleware\proxy_headers.py", line 60, in __call__
     return await self.app(scope, receive, send)
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\fastapi\applications.py", line 1133, in __call__
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\fastapi\applications.py", line 1133, in __call__
     await super().__call__(scope, receive, send)
-  File "C:\Users\team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\starlette\applications.py", line 113, in __call__
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\starlette\applications.py", line 113, in __call__
     await self.middleware_stack(scope, receive, send)
-  File "C:\Users\team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\starlette\middleware\errors.py", line 186, in __call__
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\starlette\middleware\errors.py", line 186, in __call__
     raise exc
-  File "C:\Users\team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\starlette\middleware\errors.py", line 164, in __call__
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\starlette\middleware\errors.py", line 164, in __call__
     await self.app(scope, receive, _send)
-  File "C:\Users\team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\gradio\brotli_middleware.py", line 74, in __call__
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\gradio\brotli_middleware.py", line 74, in __call__
     return await self.app(scope, receive, send)
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\gradio\route_utils.py", line 882, in __call__
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\gradio\route_utils.py", line 882, in __call__
     await self.app(scope, receive, send)
-  File "C:\Users\team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
     await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
-  File "C:\Users\team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
     raise exc
-  File "C:\Users\team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
     await app(scope, receive, sender)
-  File "C:\Users\team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\fastapi\middleware\asyncexitstack.py", line 18, in __call__
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\fastapi\middleware\asyncexitstack.py", line 18, in __call__
     await self.app(scope, receive, send)
-  File "C:\Users\team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\starlette\routing.py", line 716, in __call__
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\starlette\routing.py", line 716, in __call__
     await self.middleware_stack(scope, receive, send)
-  File "C:\Users\team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\starlette\routing.py", line 736, in app    
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\starlette\routing.py", line 736, in app
     await route.handle(scope, receive, send)
-  File "C:\Users\team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\starlette\routing.py", line 290, in handle 
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\starlette\routing.py", line 290, in handle
     await self.app(scope, receive, send)
-  File "C:\Users\team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\fastapi\routing.py", line 123, in app      
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\fastapi\routing.py", line 123, in app
     await wrap_app_handling_exceptions(app, request)(scope, receive, send)
-  File "C:\Users\team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
     raise exc
-  File "C:\Users\team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
     await app(scope, receive, sender)
-  File "C:\Users\team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\fastapi\routing.py", line 110, in app      
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\fastapi\routing.py", line 110, in app
     await response(scope, receive, send)
-  File "C:\Users\team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\gradio\ranged_response.py", line 112, in __call__
-    async with aiofiles.open(self.path, mode="rb") as file:
-               ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\aiofiles\base.py", line 63, in __aenter__  
-    return await self
-           ^^^^^^^^^^
-  File "C:\Users\team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\aiofiles\base.py", line 59, in __await__   
-    self._obj = yield from self._coro.__await__()
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\aiofiles\threadpool\__init__.py", line 92, in _open
-    f = await loop.run_in_executor(executor, cb)
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\concurrent\futures\thread.py", line 59, in run
-    result = self.fn(*self.args, **self.kwargs)
-PermissionError: [Errno 13] Permission denied: 'C:\\Users\\team\\AppData\\Local\\Temp\\gradio\\fcb7e399008e134dfa08b8b6e4531a522e90c84ee484b67429e31919abb7ae7c\\1027_Emotion Discussion Task.MP4'
-Error copying video: [WinError 32] The process cannot access the file because it is being used by another process
-Copied video to: C:\Users\team\Desktop\Annotation_Emotion\emot-ann\annotation_working\working_1029 Emotion Discussion.MP4
-Copied video to: C:\Users\team\Desktop\Annotation_Emotion\emot-ann\annotation_working\working_1029 Emotion Discussion.MP4
-Successfully wrote 149 frames to C:\Users\team\Desktop\Annotation_Emotion\emot-ann\annotation_clips\asas_clip_001.mp4
-Clip 1 created and verified: C:\Users\team\Desktop\Annotation_Emotion\emot-ann\annotation_clips\asas_clip_001.mp4
-Successfully wrote 149 frames to C:\Users\team\Desktop\Annotation_Emotion\emot-ann\annotation_clips\asas_clip_002.mp4
-Clip 2 created and verified: C:\Users\team\Desktop\Annotation_Emotion\emot-ann\annotation_clips\asas_clip_002.mp4
-Successfully wrote 149 frames to C:\Users\team\Desktop\Annotation_Emotion\emot-ann\annotation_clips\asas_clip_003.mp4
-Clip 3 created and verified: C:\Users\team\Desktop\Annotation_Emotion\emot-ann\annotation_clips\asas_clip_003.mp4
-Successfully wrote 149 frames to C:\Users\team\Desktop\Annotation_Emotion\emot-ann\annotation_clips\asas_clip_004.mp4
-Clip 4 created and verified: C:\Users\team\Desktop\Annotation_Emotion\emot-ann\annotation_clips\asas_clip_004.mp4
-Successfully wrote 149 frames to C:\Users\team\Desktop\Annotation_Emotion\emot-ann\annotation_clips\asas_clip_005.mp4
-Clip 5 created and verified: C:\Users\team\Desktop\Annotation_Emotion\emot-ann\annotation_clips\asas_clip_005.mp4
-Successfully wrote 149 frames to C:\Users\team\Desktop\Annotation_Emotion\emot-ann\annotation_clips\asas_clip_006.mp4
-Clip 6 created and verified: C:\Users\team\Desktop\Annotation_Emotion\emot-ann\annotation_clips\asas_clip_006.mp4
-Successfully wrote 149 frames to C:\Users\team\Desktop\Annotation_Emotion\emot-ann\annotation_clips\asas_clip_007.mp4
-Clip 7 created and verified: C:\Users\team\Desktop\Annotation_Emotion\emot-ann\annotation_clips\asas_clip_007.mp4
-Successfully wrote 149 frames to C:\Users\team\Desktop\Annotation_Emotion\emot-ann\annotation_clips\asas_clip_008.mp4
-Clip 8 created and verified: C:\Users\team\Desktop\Annotation_Emotion\emot-ann\annotation_clips\asas_clip_008.mp4
-Successfully wrote 149 frames to C:\Users\team\Desktop\Annotation_Emotion\emot-ann\annotation_clips\asas_clip_009.mp4
-Clip 9 created and verified: C:\Users\team\Desktop\Annotation_Emotion\emot-ann\annotation_clips\asas_clip_009.mp4
-Successfully wrote 149 frames to C:\Users\team\Desktop\Annotation_Emotion\emot-ann\annotation_clips\asas_clip_010.mp4
-Clip 10 created and verified: C:\Users\team\Desktop\Annotation_Emotion\emot-ann\annotation_clips\asas_clip_010.mp4
-Successfully wrote 149 frames to C:\Users\team\Desktop\Annotation_Emotion\emot-ann\annotation_clips\asas_clip_011.mp4
-Clip 11 created and verified: C:\Users\team\Desktop\Annotation_Emotion\emot-ann\annotation_clips\asas_clip_011.mp4
-Successfully wrote 149 frames to C:\Users\team\Desktop\Annotation_Emotion\emot-ann\annotation_clips\asas_clip_012.mp4
-Clip 12 created and verified: C:\Users\team\Desktop\Annotation_Emotion\emot-ann\annotation_clips\asas_clip_012.mp4
-Successfully wrote 10 frames to C:\Users\team\Desktop\Annotation_Emotion\emot-ann\annotation_clips\asas_clip_013.mp4
-Clip 13 created and verified: C:\Users\team\Desktop\Annotation_Emotion\emot-ann\annotation_clips\asas_clip_013.mp4
-Loading clip: C:\Users\team\Desktop\Annotation_Emotion\emot-ann\annotation_clips\asas_clip_001.mp4
-Clip path to load: C:\Users\team\Desktop\Annotation_Emotion\emot-ann\annotation_clips\asas_clip_001.mp4
-Exception in callback _ProactorBasePipeTransport._call_connection_lost()
-handle: <Handle _ProactorBasePipeTransport._call_connection_lost()>
-Traceback (most recent call last):
-  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\asyncio\events.py", line 89, in _run
-    self._context.run(self._callback, *self._args)
-    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\asyncio\proactor_events.py", line 165, in _call_connection_lost
-    self._sock.shutdown(socket.SHUT_RDWR)
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\starlette\responses.py", line 381, in __call__
+    await self._handle_single_range(send, start, end, stat_result.st_size, send_header_only)
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\starlette\responses.py", line 411, in _handle_single_range
+    async with await anyio.open_file(self.path, mode="rb") as file:
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\anyio\_core\_fileio.py", line 187, in open_file
+    fp = await to_thread.run_sync(
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+        open, file, mode, buffering, encoding, errors, newline, closefd, opener
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\anyio\to_thread.py", line 56, in run_sync
+    return await get_async_backend().run_sync_in_worker_thread(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        func, args, abandon_on_cancel=abandon_on_cancel, limiter=limiter
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\anyio\_backends\_asyncio.py", line 2485, in run_sync_in_worker_thread
+    return await future
+           ^^^^^^^^^^^^
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\anyio\_backends\_asyncio.py", line 976, in run
+    result = context.run(func, *args)
+PermissionError: [Errno 13] Permission denied: 'C:\\Users\\Team\\AppData\\Local\\Temp\\gradio\\47f6eb1c488e0bb4bdaeda7aaa2821eeb1df10544420362c4ba9f4aa652c9f52\\working_MEF002_Part1.MP4'
