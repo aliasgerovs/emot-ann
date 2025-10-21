@@ -66,13 +66,24 @@ class VideoEmotionAnnotator:
             timestamp = int(time.time() * 1000)
             working_path = os.path.join(self.working_dir, f"working_{timestamp}_{filename}")
             
+            print(f"Copying from: {video_path}")
+            print(f"Copying to: {working_path}")
+            
             with open(video_path, 'rb') as src:
                 with open(working_path, 'wb') as dst:
                     shutil.copyfileobj(src, dst, length=1024*1024)
             
-            print(f"Copied video to: {working_path}")
-            time.sleep(0.3)
-            return working_path
+            print(f"Successfully copied video to: {working_path}")
+            
+            if os.path.exists(working_path):
+                file_size = os.path.getsize(working_path)
+                print(f"Copied file size: {file_size} bytes")
+                time.sleep(0.3)
+                return working_path
+            else:
+                print("Error: File was not created")
+                return None
+                
         except Exception as e:
             print(f"Error copying video: {e}")
             return None
@@ -353,7 +364,7 @@ class VideoEmotionAnnotator:
                 if clip['number'] == clip_num:
                     clip_path = clip['path']
                     if os.path.exists(clip_path):
-                        print(f"Loading clip: {clip_path}")
+                        print(f"Loading clip from clips_dir: {clip_path}")
                         return os.path.abspath(clip_path)
                     else:
                         print(f"Clip not found: {clip_path}")
@@ -465,25 +476,31 @@ def on_video_upload(video_file):
     if not video_file:
         return (gr.update(visible=False), gr.update(maximum=999), gr.update(), gr.update(minimum=1, maximum=1, value=1, visible=True))
     
-    if hasattr(video_file, 'name'):
-        video_path = video_file.name
-    elif isinstance(video_file, str):
-        video_path = video_file
-    else:
-        return (gr.update(visible=False), gr.update(maximum=999), gr.update(), gr.update(minimum=1, maximum=1, value=1, visible=True))
-    
-    working_path = annotator.copy_video_to_working_dir(video_path)
-    if not working_path:
-        return (gr.update(visible=False), gr.update(maximum=999), gr.update(), gr.update(minimum=1, maximum=1, value=1, visible=True))
-    
-    time.sleep(0.5)
-    
     try:
+        if hasattr(video_file, 'name'):
+            video_path = video_file.name
+        elif isinstance(video_file, str):
+            video_path = video_file
+        else:
+            return (gr.update(visible=False), gr.update(maximum=999), gr.update(), gr.update(minimum=1, maximum=1, value=1, visible=True))
+        
+        print(f"Video uploaded from Gradio temp: {video_path}")
+        
+        working_path = annotator.copy_video_to_working_dir(video_path)
+        if not working_path:
+            print("Failed to copy video to working directory")
+            return (gr.update(visible=False), gr.update(maximum=999), gr.update(), gr.update(minimum=1, maximum=1, value=1, visible=True))
+        
+        print(f"Video copied to working directory: {working_path}")
+        time.sleep(0.5)
+        
         with annotator.video_capture(working_path) as cap:
             if cap.isOpened():
                 fps = cap.get(cv2.CAP_PROP_FPS)
                 frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
                 duration = frame_count / fps if fps > 0 else 0
+                
+                print(f"Video info - Duration: {duration}s, FPS: {fps}, Frames: {frame_count}")
                 
                 if duration > 0:
                     max_minutes = int(duration // 60)
@@ -495,6 +512,8 @@ def on_video_upload(video_file):
                     )
     except Exception as e:
         print(f"Error in video upload: {e}")
+        import traceback
+        traceback.print_exc()
     
     time.sleep(0.3)
     
@@ -600,33 +619,21 @@ with gr.Blocks(css=css, title="Video Emotion Annotation Tool") as demo:
             return (None, False, 0, 0, 0, gr.update(visible=True), gr.update(visible=True), gr.update(visible=True))
         
         video_path = annotator.load_clip(selected_clip)
-        print(f"Clip path to load: {video_path}")
         
         if video_path and os.path.exists(video_path):
-            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4', dir=tempfile.gettempdir())
-            temp_path = temp_file.name
-            temp_file.close()
-            
-            try:
-                time.sleep(0.2)
-                shutil.copy2(video_path, temp_path)
-                print(f"Copied clip to temp location: {temp_path}")
-                time.sleep(0.2)
-                return (
-                    temp_path,
-                    False,
-                    0,
-                    0,
-                    0,
-                    gr.update(visible=True),
-                    gr.update(visible=True),
-                    gr.update(visible=True)
-                )
-            except Exception as e:
-                print(f"Error copying clip: {e}")
-                return (None, False, 0, 0, 0, gr.update(visible=True), gr.update(visible=True), gr.update(visible=True))
+            print(f"Returning clip path directly (already in allowed clips_dir): {video_path}")
+            return (
+                video_path,
+                False,
+                0,
+                0,
+                0,
+                gr.update(visible=True),
+                gr.update(visible=True),
+                gr.update(visible=True)
+            )
         else:
-            print(f"Could not load clip, path exists: {os.path.exists(video_path) if video_path else 'No path'}")
+            print(f"Could not load clip")
             return (None, False, 0, 0, 0, gr.update(visible=True), gr.update(visible=True), gr.update(visible=True))
     
     clip_selector.change(
