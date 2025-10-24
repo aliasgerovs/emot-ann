@@ -7,6 +7,8 @@ import time
 import gc
 from contextlib import contextmanager
 from moviepy import VideoFileClip
+import subprocess
+import json
 
 class VideoEmotionAnnotator:
     def __init__(self):
@@ -54,6 +56,103 @@ class VideoEmotionAnnotator:
             if clip is not None:
                 clip.close()
             time.sleep(0.2)
+    
+    def _get_video_info_ffmpeg(self, path):
+        """Get video info using ffprobe"""
+        try:
+            # Get duration
+            cmd_duration = [
+                'ffprobe',
+                '-v', 'error',
+                '-show_entries', 'format=duration',
+                '-of', 'csv=p=0',
+                path
+            ]
+            duration_result = subprocess.run(cmd_duration, capture_output=True, text=True, check=True)
+            duration = float(duration_result.stdout.strip())
+            
+            # Get FPS from video stream
+            cmd_fps = [
+                'ffprobe',
+                '-v', 'error',
+                '-select_streams', 'v:0',
+                '-show_entries', 'stream=r_frame_rate',
+                '-of', 'csv=p=0',
+                path
+            ]
+            fps_result = subprocess.run(cmd_fps, capture_output=True, text=True, check=True)
+            r_frame_rate = fps_result.stdout.strip()
+            if '/' in r_frame_rate:
+                num, den = map(int, r_frame_rate.split('/'))
+                fps = num / den if den != 0 else 30.0  # default fallback
+            else:
+                fps = 30.0
+            
+            frame_count = int(duration * fps)
+            return duration, fps, frame_count
+        except Exception as e:
+            print(f"ffprobe error: {e}")
+            return 0, 0, 0
+    
+    def get_video_info(self, video_path):
+        if not video_path or not os.path.exists(video_path):
+            return 0, 0, 0
+        
+        working_path = self.copy_video_to_working_dir(video_path)
+        if not working_path:
+            return 0, 0, 0
+        
+        # Try ffprobe first
+        duration, fps, frame_count = self._get_video_info_ffmpeg(working_path)
+        if duration > 0:
+            return duration, fps, frame_count
+        
+        # Fallback to MoviePy
+        try:
+            time.sleep(0.3)
+            with self.video_clip_context(working_path) as clip:
+                duration = clip.duration
+                fps = clip.fps
+                frame_count = int(duration * fps)
+                return duration, fps, frame_count
+        except Exception as e:
+            print(f"MoviePy error in get_video_info: {e}")
+        
+        return 0, 0, 0
+    
+    def extract_clip(self, input_path, output_path, start_time, clip_duration):
+        """Extract clip using ffmpeg directly"""
+        cmd = [
+            'ffmpeg',
+            '-ss', f"{start_time:.3f}",
+            '-i', input_path,
+            '-t', f"{clip_duration:.3f}",
+            '-c:v', 'libx264',
+            '-preset', 'ultrafast',
+            '-crf', '23',
+            '-c:a', 'aac',
+            '-b:a', '128k',
+            '-avoid_negative_ts', 'make_zero',
+            '-y',
+            output_path
+        ]
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            # Suppress output unless error
+            if result.returncode == 0:
+                return True
+            else:
+                print(f"FFmpeg error: {result.stderr}")
+                return False
+        except subprocess.CalledProcessError as e:
+            print(f"FFmpeg subprocess error: {e.stderr}")
+            return False
+        except FileNotFoundError:
+            print("FFmpeg not found in PATH. Please install FFmpeg and add to PATH.")
+            return False
+        except Exception as e:
+            print(f"Unexpected error in extract_clip: {e}")
+            return False
     
     def format_time(self, seconds):
         minutes = int(seconds // 60)
@@ -106,32 +205,8 @@ class VideoEmotionAnnotator:
                 
         except Exception as e:
             print(f"Error copying video: {e}")
-            import traceback
-            traceback.print_exc()
             return None
     
-    def get_video_info(self, video_path):
-        if not video_path:
-            return 0, 0, 0
-        
-        working_path = self.copy_video_to_working_dir(video_path)
-        if not working_path:
-            return 0, 0, 0
-        
-        try:
-            time.sleep(0.3)
-            with self.video_clip_context(working_path) as clip:
-                duration = clip.duration
-                fps = clip.fps
-                frame_count = int(duration * fps)
-                return duration, fps, frame_count
-        except Exception as e:
-            print(f"Error getting video info: {e}")
-            import traceback
-            traceback.print_exc()
-        
-        return 0, 0, 0
-
     def process_video(self, video_file, participant_id, start_time, interval, process_minutes, progress=gr.Progress()):
         if not video_file or not participant_id:
             return "Please upload a video and provide a participant ID.", gr.update(choices=[])
@@ -186,16 +261,19 @@ class VideoEmotionAnnotator:
         fps = 0
         duration = 0
         
-        try:
-            with self.video_clip_context(self.working_video_path) as clip:
-                fps = clip.fps
-                duration = clip.duration
-                print(f"Video info - Duration: {duration}s, FPS: {fps}")
-        except Exception as e:
-            print(f"Error reading video: {e}")
-            import traceback
-            traceback.print_exc()
-            return "Failed to read video file. Please try again.", gr.update(choices=[])
+        # Try ffprobe first
+        duration, fps, _ = self._get_video_info_ffmpeg(self.working_video_path)
+        if duration == 0:
+            # Fallback to MoviePy
+            try:
+                with self.video_clip_context(self.working_video_path) as clip:
+                    duration = clip.duration
+                    fps = clip.fps
+            except Exception as e:
+                print(f"Error reading video with MoviePy fallback: {e}")
+                return "Failed to read video file. Please try again.", gr.update(choices=[])
+        
+        print(f"Video info - Duration: {duration}s, FPS: {fps}")
         
         time.sleep(0.3)
         
@@ -219,87 +297,60 @@ class VideoEmotionAnnotator:
         
         try:
             time.sleep(0.3)
-            with self.video_clip_context(self.working_video_path) as video:
-                fps = video.fps
-                self.current_clips = []
-                clip_num = 1
+            self.current_clips = []
+            clip_num = 1
+            
+            # Calculate total number of clips
+            current_time = start_time
+            total_clips = 0
+            while current_time < end_time:
+                total_clips += 1
+                current_time += interval
+            
+            print(f"Will create {total_clips} clips")
+            
+            current_clip_idx = 0
+            current_time = start_time
+            
+            while current_time < end_time:
+                clip_end_time = min(current_time + interval, end_time)
+                clip_duration = clip_end_time - current_time
                 
-                # Calculate total number of clips
-                current_time = start_time
-                total_clips = 0
-                while current_time < end_time:
-                    total_clips += 1
-                    current_time += interval
+                progress(
+                    0.3 + (0.65 * current_clip_idx / total_clips),
+                    desc=f"Extracting clip {clip_num}/{total_clips} ({self.format_time(current_time)} - {self.format_time(clip_end_time)})"
+                )
                 
-                print(f"Will create {total_clips} clips")
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+                clip_filename = f"clip_{self.participant_id}_{timestamp}_{clip_num:03d}.mp4"
+                output_path = os.path.join(self.clips_dir, clip_filename)
                 
-                current_clip_idx = 0
-                current_time = start_time
+                print(f"Creating clip {clip_num} at {output_path}")
                 
-                while current_time < end_time:
-                    clip_end_time = min(current_time + interval, end_time)
-                    
-                    progress(
-                        0.3 + (0.65 * current_clip_idx / total_clips),
-                        desc=f"Extracting clip {clip_num}/{total_clips} ({self.format_time(current_time)} - {self.format_time(clip_end_time)})"
-                    )
-                    
-                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-                    clip_filename = f"clip_{self.participant_id}_{timestamp}_{clip_num:03d}.mp4"
-                    output_path = os.path.join(self.clips_dir, clip_filename)
-                    
-                    print(f"Creating clip {clip_num} at {output_path}")
-                    
-                    try:
-                        # Extract subclip using MoviePy
-                        subclip = video.subclipped(current_time, clip_end_time)
-                        
-                        # Use our working directory for temp files
-                        temp_audiofile = os.path.join(self.working_dir, f'temp_audio_{timestamp}_{clip_num}.m4a')
-                        
-                        subclip.write_videofile(
-                            output_path,
-                            codec='libx264',
-                            audio_codec='aac',
-                            temp_audiofile=temp_audiofile,
-                            remove_temp=True,
-                            logger=None,
-                            threads=4,
-                            preset='ultrafast'
-                        )
-                        subclip.close()
-                        
-                        time.sleep(0.2)
-                        
-                        if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
-                            clip_label = f"Clip {clip_num:03d} ({self.format_time(current_time)} - {self.format_time(clip_end_time)})"
-                            self.current_clips.append({
-                                'label': clip_label,
-                                'path': output_path,
-                                'start': current_time,
-                                'end': clip_end_time,
-                                'number': clip_num
-                            })
-                            print(f"Successfully saved clip to: {output_path}")
-                        else:
-                            print(f"Warning: Clip file not created or is empty: {output_path}")
-                    
-                    except Exception as e:
-                        print(f"Error creating clip {clip_num}: {str(e)}")
-                        import traceback
-                        traceback.print_exc()
-                    
-                    clip_num += 1
-                    current_clip_idx += 1
-                    current_time += interval
-                    
-                    # Clean up memory
-                    gc.collect()
+                success = self.extract_clip(self.working_video_path, output_path, current_time, clip_duration)
+                
+                if success and os.path.exists(output_path) and os.path.getsize(output_path) > 0:
+                    clip_label = f"Clip {clip_num:03d} ({self.format_time(current_time)} - {self.format_time(clip_end_time)})"
+                    self.current_clips.append({
+                        'label': clip_label,
+                        'path': output_path,
+                        'start': current_time,
+                        'end': clip_end_time,
+                        'number': clip_num
+                    })
+                    print(f"Successfully saved clip to: {output_path}")
+                else:
+                    print(f"Warning: Clip file not created or is empty: {output_path}")
+                
+                clip_num += 1
+                current_clip_idx += 1
+                current_time += interval
+                
+                # Light cleanup
+                gc.collect()
         
         except Exception as e:
             print(f"Error during clip extraction: {str(e)}")
-            import traceback
-            traceback.print_exc()
             return f"Failed to process video: {str(e)}", gr.update(choices=[])
         
         progress(0.95, desc="Finalizing...")
