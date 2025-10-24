@@ -121,6 +121,37 @@ class VideoEmotionAnnotator:
         
         return 0, 0, 0
 
+    def remux_for_web(self, input_path):
+        """Remux MP4 with faststart for better browser loading"""
+        if not os.path.exists(input_path):
+            return False
+        
+        output_path = input_path.replace('.mp4', '_faststart.mp4')
+        cmd = [
+            'ffmpeg',
+            '-i', input_path,
+            '-movflags', 'faststart',
+            '-c', 'copy',
+            '-y',
+            output_path
+        ]
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
+                os.replace(output_path, input_path)
+                print(f"Remuxed for web: {input_path}")
+                return True
+            else:
+                print("Remux failed, keeping original")
+                if os.path.exists(output_path):
+                    os.remove(output_path)
+                return False
+        except Exception as e:
+            print(f"Remux error: {e}")
+            if os.path.exists(output_path):
+                os.remove(output_path)
+            return False
+
     def format_time(self, seconds):
         minutes = int(seconds // 60)
         secs = int(seconds % 60)
@@ -312,9 +343,15 @@ class VideoEmotionAnnotator:
                         )
                         subclip.close()
                     
-                    time.sleep(1.0)  # Increased sleep to ensure file flush and indexing
+                    # Remux for better web loading
+                    self.remux_for_web(output_path)
+                    
+                    time.sleep(1.0)  # Ensure file flush
                     
                     if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
+                        # Verify duration with ffprobe
+                        _, clip_fps, _ = self._get_video_info_ffmpeg(output_path)
+                        print(f"Clip {clip_num} info: FPS {clip_fps}")
                         clip_label = f"Clip {clip_num:03d} ({self.format_time(current_time)} - {self.format_time(clip_end_time)})"
                         self.current_clips.append({
                             'label': clip_label,
@@ -331,7 +368,10 @@ class VideoEmotionAnnotator:
                     error_str = str(e)
                     if 'stdout' in error_str and 'NoneType' in error_str:
                         print(f"Ignoring known audio processing error for clip {clip_num}: {error_str}")
-                        time.sleep(1.0)  # Still sleep after potential partial write
+                        time.sleep(1.0)
+                        # Try remux if file exists
+                        if os.path.exists(output_path):
+                            self.remux_for_web(output_path)
                         # Check if file was still created despite error
                         if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
                             clip_label = f"Clip {clip_num:03d} ({self.format_time(current_time)} - {self.format_time(clip_end_time)})"
@@ -393,10 +433,9 @@ Select a clip below to begin annotating."""
         for clip in self.current_clips:
             if clip['label'] == clip_label:
                 if os.path.exists(clip['path']):
-                    # Return relative path for Gradio Video component
-                    rel_path = os.path.relpath(clip['path'], os.getcwd())
-                    print(f"Loading relative clip path: {rel_path}")
-                    return rel_path
+                    abs_path = os.path.abspath(clip['path'])
+                    print(f"Loading absolute clip path: {abs_path}")
+                    return abs_path
         
         return None
     
@@ -609,8 +648,9 @@ with gr.Blocks(css=css, title="Video Emotion Annotator") as demo:
         
         video_path = annotator.load_clip(selected_clip)
         
-        if video_path and os.path.exists(os.path.join(os.getcwd(), video_path)):
-            print(f"Returning clip path: {video_path}")
+        if video_path and os.path.exists(video_path):
+            print(f"Returning clip path for Gradio: {video_path}")
+            time.sleep(0.5)  # Small delay for browser to catch up
             return (
                 video_path,
                 False,
