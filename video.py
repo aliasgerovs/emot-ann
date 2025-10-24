@@ -312,7 +312,7 @@ class VideoEmotionAnnotator:
                         )
                         subclip.close()
                     
-                    time.sleep(0.2)
+                    time.sleep(1.0)  # Increased sleep to ensure file flush and indexing
                     
                     if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
                         clip_label = f"Clip {clip_num:03d} ({self.format_time(current_time)} - {self.format_time(clip_end_time)})"
@@ -331,6 +331,7 @@ class VideoEmotionAnnotator:
                     error_str = str(e)
                     if 'stdout' in error_str and 'NoneType' in error_str:
                         print(f"Ignoring known audio processing error for clip {clip_num}: {error_str}")
+                        time.sleep(1.0)  # Still sleep after potential partial write
                         # Check if file was still created despite error
                         if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
                             clip_label = f"Clip {clip_num:03d} ({self.format_time(current_time)} - {self.format_time(clip_end_time)})"
@@ -392,7 +393,10 @@ Select a clip below to begin annotating."""
         for clip in self.current_clips:
             if clip['label'] == clip_label:
                 if os.path.exists(clip['path']):
-                    return clip['path']
+                    # Return relative path for Gradio Video component
+                    rel_path = os.path.relpath(clip['path'], os.getcwd())
+                    print(f"Loading relative clip path: {rel_path}")
+                    return rel_path
         
         return None
     
@@ -605,7 +609,7 @@ with gr.Blocks(css=css, title="Video Emotion Annotator") as demo:
         
         video_path = annotator.load_clip(selected_clip)
         
-        if video_path and os.path.exists(video_path):
+        if video_path and os.path.exists(os.path.join(os.getcwd(), video_path)):
             print(f"Returning clip path: {video_path}")
             return (
                 video_path,
@@ -618,7 +622,7 @@ with gr.Blocks(css=css, title="Video Emotion Annotator") as demo:
                 gr.update(visible=True)
             )
         else:
-            print(f"Could not load clip")
+            print(f"Could not load clip: {video_path}")
             return (None, False, 0, 0, 0, gr.update(visible=True), gr.update(visible=True), gr.update(visible=True))
     
     clip_selector.change(
