@@ -727,3 +727,48 @@ Clip not saved due to error: C:\Users\Team\Desktop\Annotation_Emotion\emot-ann\a
 Creating clip 3 at C:\Users\Team\Desktop\Annotation_Emotion\emot-ann\annotation_clips\clip_sdsd_20251024_182058_940529_003.mp4
 Ignoring known audio processing error for clip 3: 'NoneType' object has no attribute 'stdout'
 Clip not saved due to error: C:\Us
+
+
+
+Received video path: C:\Users\Team\AppData\Local\Temp\gradio\631dd81a34627ee53f477be9f857980d4c26c11f747847840bc0d0f455ddb814\MEF003_Part499999999045.MP4
+Copying from: C:\Users\Team\AppData\Local\Temp\gradio\631dd81a34627ee53f477be9f857980d4c26c11f747847840bc0d0f455ddb814\MEF003_Part499999999045.MP4
+Copying to: C:\Users\Team\Desktop\Annotation_Emotion\emot-ann\annotation_uploads\upload_1761346626983_MEF003_Part499999999045.MP4
+Uploaded file size: 1343311700 bytes
+Copying to working: C:\Users\Team\Desktop\Annotation_Emotion\emot-ann\annotation_working\working_1761346626983_MEF003_Part499999999045.MP4
+Successfully copied to working directory: C:\Users\Team\Desktop\Annotation_Emotion\emot-ann\annotation_working\working_1761346626983_MEF003_Part499999999045.MP4
+Video info - Duration: 425.93s, FPS: 59.94
+Will create 14 clips
+Creating clip 1 at C:\Users\Team\Desktop\Annotation_Emotion\emot-ann\annotation_clips\clip_dfd_20251024_185710_414269_001.mp4
+Successfully saved clip to: C:\Users\Team\Desktop\Annotation_Emotion\emot-ann\annotation_clips\clip_dfd_20251024_185710_414269_001.mp4
+Creating clip 2 at C:\Users\Team\Desktop\Annotation_Emotion\emot-ann\annotation_clips\clip_dfd_20251024_185716_080938_002.mp4
+Successfully saved clip to: C:\Users\Team\Desktop\Annotation_Emotion\emot-ann\annotation_clips\clip_dfd_20251024_185716_080938_002.mp4
+Creating clip 3 at C:\Users\Team\Desktop\Annotation_Emotion\emot-ann\annotation_clips\clip_dfd_20251024_185721_967570_003.mp4
+Successfully saved clip to: C:\Users\Team\Desktop\Annotation_Emotion\emot-ann\annotation_clips\clip_dfd_20251024_185721_967570_003.mp4
+Creating clip 4 at C:\Users\Team\Desktop\Annotation_Emotion\emot-ann\annotation_clips\clip_dfd_20251024_185727_608598_004.mp4
+Successfully saved clip to: C:\Users\Team\Desktop\Annotation_Emotion\emot-ann\annotation_clips\clip_dfd_20251024_185727_608598_004.mp4
+Creating clip 5 at C:\Users\Team\Desktop\Annotation_Emotion\emot-ann\annotation_clips\clip_dfd_20251024_185733_263957_005.mp4
+Successfully saved clip to: C:\Users\Team\Desktop\Annotation_Emotion\emot-ann\annotation_clips\clip_dfd_20251024_185733_263957_005.mp4
+Creating clip 6 at C:\Users\Team\Desktop\Annotation_Emotion\emot-ann\annotation_clips\clip_dfd_20251024_185738_877195_006.mp4
+Successfully saved clip to: C:\Users\Team\Desktop\Annotation_Emotion\emot-ann\annotation_clips\clip_dfd_20251024_185738_877195_006.mp4
+Creating clip 7 at C:\Users\Team\Desktop\Annotation_Emotion\emot-ann\annotation_clips\clip_dfd_20251024_185744_468391_007.mp4
+Successfully saved clip to: C:\Users\Team\Desktop\Annotation_Emotion\emot-ann\annotation_clips\clip_dfd_20251024_185744_468391_007.mp4
+Creating clip 8 at C:\Users\Team\Desktop\Annotation_Emotion\emot-ann\annotation_clips\clip_dfd_20251024_185750_145857_008.mp4
+Successfully saved clip to: C:\Users\Team\Desktop\Annotation_Emotion\emot-ann\annotation_clips\clip_dfd_20251024_185750_145857_008.mp4
+Creating clip 9 at C:\Users\Team\Desktop\Annotation_Emotion\emot-ann\annotation_clips\clip_dfd_20251024_185755_833141_009.mp4
+Successfully saved clip to: C:\Users\Team\Desktop\Annotation_Emotion\emot-ann\annotation_clips\clip_dfd_20251024_185755_833141_009.mp4
+Creating clip 10 at C:\Users\Team\Desktop\Annotation_Emotion\emot-ann\annotation_clips\clip_dfd_20251024_185801_389297_010.mp4
+Successfully saved clip to: C:\Users\Team\Desktop\Annotation_Emotion\emot-ann\annotation_clips\clip_dfd_20251024_185801_389297_010.mp4
+Creating clip 11 at C:\Users\Team\Desktop\Annotation_Emotion\emot-ann\annotation_clips\clip_dfd_20251024_185806_995707_011.mp4
+Successfully saved clip to: C:\Users\Team\Desktop\Annotation_Emotion\emot-ann\annotation_clips\clip_dfd_20251024_185806_995707_011.mp4
+Creating clip 12 at C:\Users\Team\Desktop\Annotation_Emotion\emot-ann\annotation_clips\clip_dfd_20251024_185812_617817_012.mp4
+Successfully saved clip to: C:\Users\Team\Desktop\Annotation_Emotion\emot-ann\annotation_clips\clip_dfd_20251024_185812_617817_012.mp4
+Creating clip 13 at C:\Users\Team\Desktop\Annotation_Emotion\emot-ann\annotation_clips\clip_dfd_20251024_185818_239466_013.mp4
+Successfully saved clip to: C:\Users\Team\Desktop\Annotation_Emotion\emot-ann\annotation_clips\clip_dfd_20251024_185818_239466_013.mp4
+Creating clip 14 at C:\Users\Team\Desktop\Annotation_Emotion\emot-ann\annotation_clips\clip_dfd_20251024_185823_839984_014.mp4
+Successfully saved clip to: C:\Users\Team\Desktop\Annotation_Emotion\emot-ann\annotation_clips\clip_dfd_20251024_185823_839984_014.mp4
+Loading relative clip path: annotation_clips\clip_dfd_20251024_185710_414269_001.mp4
+Returning clip path for Gradio: annotation_clips\clip_dfd_20251024_185710_414269_001.mp4
+Loading relative clip path: annotation_clips\clip_dfd_20251024_185721_967570_003.mp4
+Returning clip path for Gradio: annotation_clips\clip_dfd_20251024_185721_967570_003.mp4
+Loading relative clip path: annotation_clips\clip_dfd_20251024_185750_145857_008.mp4
+Returning clip path for Gradio: annotation_clips\clip_dfd_20251024_185750_145857_008.mp4
