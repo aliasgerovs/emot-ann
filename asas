@@ -432,3 +432,280 @@ Returning clip path: C:\Users\Team\Desktop\Annotation_Emotion\emot-ann\annotatio
     s = self.proc.stdout.read(self.nchannels * chunksize * self.nbytes)
         ^^^^^^^^^^^^^^^^
 AttributeError: 'NoneType' object has no attribute 'stdout'
+
+
+
+# COMPLETE FIX FOR THE PERSISTENT AUDIO ERROR
+# Replace your entire process_video function with this version
+
+def process_video(video_path):
+    """
+    Process video file and split it into clips - FIXED VERSION
+    This version reloads the video for each clip to avoid audio stream corruption
+    """
+    import os
+    import gc
+    from datetime import datetime
+    from moviepy.editor import VideoFileClip
+    import traceback
+    
+    print(f"Processing video: {video_path}")
+    
+    # Create output directory
+    output_dir = "annotation_clips"
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    
+    # Extract base filename without extension
+    base_filename = os.path.splitext(os.path.basename(video_path))[0]
+    
+    # First, just get the video info
+    temp_video = VideoFileClip(video_path)
+    duration = temp_video.duration
+    fps = temp_video.fps
+    temp_video.close()
+    del temp_video
+    gc.collect()
+    
+    print(f"Video duration: {duration:.2f} seconds")
+    print(f"Video FPS: {fps}")
+    
+    # Calculate clip parameters
+    clip_duration = 10  # 10 seconds per clip
+    num_clips = int(duration // clip_duration)
+    
+    if duration % clip_duration > 0:
+        num_clips += 1
+    
+    print(f"Creating {num_clips} clips of {clip_duration} seconds each")
+    
+    # Create clips
+    clips_created = []
+    
+    for i in range(num_clips):
+        start_time = i * clip_duration
+        end_time = min((i + 1) * clip_duration, duration)
+        
+        # Generate unique filename with timestamp
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-3]
+        clip_filename = f"clip_{base_filename}_{timestamp}_{i+1:03d}.mp4"
+        clip_path = os.path.join(output_dir, clip_filename)
+        
+        print(f"Creating clip {i+1} at {clip_path}")
+        
+        # CRITICAL FIX: Reload video for EACH clip to get fresh audio stream
+        video = None
+        subclip = None
+        
+        try:
+            # Load video fresh for this clip
+            video = VideoFileClip(video_path)
+            
+            # Extract subclip (use subclipped for new versions, subclip for old)
+            try:
+                subclip = video.subclipped(start_time, end_time)
+            except AttributeError:
+                subclip = video.subclip(start_time, end_time)
+            
+            # Write with audio - using robust settings
+            subclip.write_videofile(
+                clip_path, 
+                codec='libx264', 
+                audio_codec='aac',
+                audio_fps=44100,
+                audio_nbytes=2,
+                audio_bitrate='192k',
+                temp_audiofile=f'temp-audio-{i:03d}.m4a',
+                remove_temp=True,
+                threads=2,  # Use fewer threads to be safe
+                preset='medium',
+                logger=None  # Suppress verbose output
+            )
+            
+            clips_created.append({
+                'filename': clip_filename,
+                'path': clip_path,
+                'start_time': start_time,
+                'end_time': end_time,
+                'clip_number': i + 1
+            })
+            
+            print(f"Successfully created clip {i+1} with audio")
+            
+        except Exception as e:
+            print(f"Error creating clip {i+1}: {str(e)}")
+            traceback.print_exc()
+            
+            # Try alternative approach if main method fails
+            if "stdout" in str(e) and "'NoneType'" in str(e):
+                print(f"Attempting workaround for clip {i+1}...")
+                
+                try:
+                    # Clean up failed attempt
+                    if subclip:
+                        try:
+                            subclip.close()
+                        except:
+                            pass
+                    if video:
+                        try:
+                            video.close()
+                        except:
+                            pass
+                    
+                    gc.collect()
+                    import time
+                    time.sleep(1)  # Brief pause
+                    
+                    # Try with a fresh load and different approach
+                    video2 = VideoFileClip(video_path)
+                    
+                    # Extract using array slicing if possible
+                    try:
+                        subclip2 = video2.subclipped(start_time, end_time)
+                    except AttributeError:
+                        subclip2 = video2.subclip(start_time, end_time)
+                    
+                    # Write with minimal processing
+                    subclip2.write_videofile(
+                        clip_path,
+                        codec='libx264',
+                        audio_codec='pcm_s16le',  # Try uncompressed audio first
+                        temp_audiofile=f'temp-audio-alt-{i:03d}.wav',
+                        remove_temp=True,
+                        threads=1,  # Single thread to avoid issues
+                        logger=None
+                    )
+                    
+                    subclip2.close()
+                    video2.close()
+                    
+                    clips_created.append({
+                        'filename': clip_filename,
+                        'path': clip_path,
+                        'start_time': start_time,
+                        'end_time': end_time,
+                        'clip_number': i + 1
+                    })
+                    
+                    print(f"Successfully created clip {i+1} using workaround")
+                    
+                except Exception as e2:
+                    print(f"Workaround also failed for clip {i+1}: {str(e2)}")
+        
+        finally:
+            # ALWAYS clean up resources after each clip
+            if subclip:
+                try:
+                    subclip.close()
+                except:
+                    pass
+            if video:
+                try:
+                    video.close()
+                except:
+                    pass
+            
+            # Force cleanup
+            del subclip
+            del video
+            gc.collect()
+            
+            # Small pause between clips to let system recover
+            import time
+            time.sleep(0.5)
+    
+    print(f"\nProcessing complete. Created {len(clips_created)} clips with audio")
+    return clips_created
+
+
+# ALTERNATIVE: If the above still doesn't work, try this approach using ffmpeg directly
+def process_video_with_ffmpeg(video_path):
+    """
+    Alternative approach using ffmpeg directly via subprocess
+    This bypasses MoviePy's audio handling entirely
+    """
+    import os
+    import subprocess
+    from datetime import datetime
+    
+    print(f"Processing video using direct ffmpeg: {video_path}")
+    
+    # Create output directory
+    output_dir = "annotation_clips"
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    
+    # Extract base filename
+    base_filename = os.path.splitext(os.path.basename(video_path))[0]
+    
+    # Get video duration using ffprobe
+    cmd = [
+        'ffprobe', '-v', 'error', '-show_entries', 'format=duration',
+        '-of', 'default=noprint_wrappers=1:nokey=1', video_path
+    ]
+    
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        duration = float(result.stdout.strip())
+    except:
+        # Fallback to MoviePy for duration
+        from moviepy.editor import VideoFileClip
+        video = VideoFileClip(video_path)
+        duration = video.duration
+        video.close()
+    
+    print(f"Video duration: {duration:.2f} seconds")
+    
+    # Calculate clips
+    clip_duration = 10
+    num_clips = int(duration // clip_duration)
+    if duration % clip_duration > 0:
+        num_clips += 1
+    
+    clips_created = []
+    
+    for i in range(num_clips):
+        start_time = i * clip_duration
+        end_time = min((i + 1) * clip_duration, duration)
+        clip_length = end_time - start_time
+        
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-3]
+        clip_filename = f"clip_{base_filename}_{timestamp}_{i+1:03d}.mp4"
+        clip_path = os.path.join(output_dir, clip_filename)
+        
+        print(f"Creating clip {i+1} at {clip_path}")
+        
+        # Use ffmpeg directly
+        cmd = [
+            'ffmpeg',
+            '-i', video_path,
+            '-ss', str(start_time),
+            '-t', str(clip_length),
+            '-c:v', 'libx264',
+            '-c:a', 'aac',
+            '-b:a', '192k',
+            '-ar', '44100',
+            '-preset', 'medium',
+            '-y',  # Overwrite output
+            clip_path
+        ]
+        
+        try:
+            subprocess.run(cmd, capture_output=True, check=True)
+            
+            clips_created.append({
+                'filename': clip_filename,
+                'path': clip_path,
+                'start_time': start_time,
+                'end_time': end_time,
+                'clip_number': i + 1
+            })
+            
+            print(f"Successfully created clip {i+1}")
+            
+        except subprocess.CalledProcessError as e:
+            print(f"Error creating clip {i+1}: {e}")
+    
+    print(f"\nProcessing complete. Created {len(clips_created)} clips")
+    return clips_created
