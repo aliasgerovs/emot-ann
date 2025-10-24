@@ -709,3 +709,21 @@ def process_video_with_ffmpeg(video_path):
     
     print(f"\nProcessing complete. Created {len(clips_created)} clips")
     return clips_created
+
+
+
+
+  
+
+
+
+  Will create 14 clips
+Creating clip 1 at C:\Users\Team\Desktop\Annotation_Emotion\emot-ann\annotation_clips\clip_sdsd_20251024_182054_384006_001.mp4
+Successfully saved clip to: C:\Users\Team\Desktop\Annotation_Emotion\emot-ann\annotation_clips\clip_sdsd_20251024_182054_384006_001.mp4
+Creating clip 2 at C:\Users\Team\Desktop\Annotation_Emotion\emot-ann\annotation_clips\clip_sdsd_20251024_182058_513616_002.mp4
+Proc not detected
+Ignoring known audio processing error for clip 2: 'NoneType' object has no attribute 'stdout'
+Clip not saved due to error: C:\Users\Team\Desktop\Annotation_Emotion\emot-ann\annotation_clips\clip_sdsd_20251024_182058_513616_002.mp4
+Creating clip 3 at C:\Users\Team\Desktop\Annotation_Emotion\emot-ann\annotation_clips\clip_sdsd_20251024_182058_940529_003.mp4
+Ignoring known audio processing error for clip 3: 'NoneType' object has no attribute 'stdout'
+Clip not saved due to error: C:\Us
