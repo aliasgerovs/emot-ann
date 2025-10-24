@@ -8,7 +8,6 @@ import gc
 from contextlib import contextmanager
 from moviepy.editor import VideoFileClip
 import subprocess
-import json  # For parsing ffprobe JSON
 
 class VideoEmotionAnnotator:
     def __init__(self):
@@ -75,7 +74,7 @@ class VideoEmotionAnnotator:
     def _get_video_info_ffmpeg(self, path):
         """Get video info using ffprobe - only if available"""
         if not self.ffmpeg_available:
-            return 0, 0, 0, {}
+            return 0, 0, 0
         
         try:
             # Get duration
@@ -106,50 +105,24 @@ class VideoEmotionAnnotator:
             else:
                 fps = float(r_frame_rate) if r_frame_rate else 30.0
             
-            # Probe detailed format info for matching
-            cmd_probe = [
-                'ffprobe',
-                '-v', 'quiet',
-                '-print_format', 'json',
-                '-show_format',
-                '-show_streams',
-                path
-            ]
-            probe_result = subprocess.run(cmd_probe, capture_output=True, text=True, check=True)
-            probe_info = json.loads(probe_result.stdout)
-            
-            # Extract key params
-            video_stream = next((s for s in probe_info['streams'] if s['codec_type'] == 'video'), {})
-            audio_stream = next((s for s in probe_info['streams'] if s['codec_type'] == 'audio'), {})
-            
-            format_info = {
-                'vcodec': video_stream.get('codec_name', 'h264'),
-                'acodec': audio_stream.get('codec_name', 'aac'),
-                'profile': video_stream.get('profile', 'baseline'),  # Default to baseline for compat
-                'width': int(video_stream.get('width', 0)),
-                'height': int(video_stream.get('height', 0)),
-                'bitrate': probe_info['format'].get('bit_rate', '2000000'),  # Fallback 2Mbps
-                'duration': float(probe_info['format'].get('duration', duration))
-            }
-            
             frame_count = int(duration * fps)
-            return duration, fps, frame_count, format_info
+            return duration, fps, frame_count
         except Exception as e:
             print(f"ffprobe error: {e}")
-            return 0, 0, 0, {}
+            return 0, 0, 0
     
     def get_video_info(self, video_path):
         if not video_path:
-            return 0, 0, 0, {}
+            return 0, 0, 0
         
         working_path = self.copy_video_to_working_dir(video_path)
         if not working_path:
-            return 0, 0, 0, {}
+            return 0, 0, 0
         
         # Try ffprobe first if available
-        duration, fps, frame_count, format_info = self._get_video_info_ffmpeg(working_path)
+        duration, fps, frame_count = self._get_video_info_ffmpeg(working_path)
         if duration > 0:
-            return duration, fps, frame_count, format_info
+            return duration, fps, frame_count
         
         # Fallback to MoviePy
         try:
@@ -158,13 +131,13 @@ class VideoEmotionAnnotator:
                 duration = clip.duration
                 fps = clip.fps
                 frame_count = int(duration * fps)
-                return duration, fps, frame_count, {}  # No detailed info
+                return duration, fps, frame_count
         except Exception as e:
             print(f"Error getting video info: {e}")
             import traceback
             traceback.print_exc()
         
-        return 0, 0, 0, {}
+        return 0, 0, 0
 
     def format_time(self, seconds):
         minutes = int(seconds // 60)
@@ -223,7 +196,7 @@ class VideoEmotionAnnotator:
     
     def process_video(self, video_file, participant_id, start_time, interval, process_minutes, progress=gr.Progress()):
         if not video_file or not participant_id:
-            return "Please upload a video and provide a participant ID.", gr.update(choices=[])
+            return "Please upload a video and provide a Participant ID.", gr.update(choices=[])
         
         progress(0, desc="Starting video processing...")
         
@@ -279,27 +252,21 @@ class VideoEmotionAnnotator:
         
         fps = 0
         duration = 0
-        format_info = {}
         
-        # Get info (ffprobe if available, else MoviePy) - now includes format probing
-        duration, fps, _, format_info = self.get_video_info(video_path)  # Probe original for matching
+        # Get info (ffprobe if available, else MoviePy)
+        duration, fps, _ = self._get_video_info_ffmpeg(self.working_video_path)
         if duration == 0:
-            # Fallback probe working copy
-            duration, fps, _, format_info = self._get_video_info_ffmpeg(self.working_video_path)
-            if duration == 0:
-                try:
-                    with self.video_clip_context(self.working_video_path) as clip:
-                        duration = clip.duration
-                        fps = clip.fps
-                        format_info = {}  # No detailed fallback
-                except Exception as e:
-                    print(f"Error reading video: {e}")
-                    import traceback
-                    traceback.print_exc()
-                    return "Failed to read video file. Please try again.", gr.update(choices=[])
+            try:
+                with self.video_clip_context(self.working_video_path) as clip:
+                    duration = clip.duration
+                    fps = clip.fps
+            except Exception as e:
+                print(f"Error reading video: {e}")
+                import traceback
+                traceback.print_exc()
+                return "Failed to read video file. Please try again.", gr.update(choices=[])
         
         print(f"Video info - Duration: {duration}s, FPS: {fps}")
-        print(f"Probed format: {format_info}")  # Log for debug
         
         time.sleep(0.3)
         
@@ -358,43 +325,18 @@ class VideoEmotionAnnotator:
                         # Extract subclip using MoviePy
                         subclip = video.subclip(current_time, clip_end_time)
                         
-                        # Match original format for browser compat
-                        vcodec = format_info.get('vcodec', 'libx264')
-                        acodec = format_info.get('acodec', 'aac')
-                        profile = format_info.get('profile', 'baseline')  # Force baseline for max compat
-                        bitrate = format_info.get('bitrate', '2000000')  # Match or fallback
-                        width = format_info.get('width', None)
-                        height = format_info.get('height', None)
-                        
-                        # Resize if needed to match original (prevents distortion)
-                        if width and height:
-                            subclip = subclip.resize((width, height))
-                        
                         subclip.write_videofile(
                             output_path,
-                            codec=vcodec,
-                            audio_codec=acodec,
-                            bitrate=bitrate,
-                            fps=fps,  # Match original FPS
-                            ffmpeg_params=[
-                                '-profile:v', profile,  # Explicit profile
-                                '-movflags', '+faststart',  # Web-optimized
-                                '-fflags', '+genpts',  # Fix timestamps
-                                '-avoid_negative_ts', 'make_zero'  # Audio/video sync
-                            ],
-                            logger='bar',  # Show progress bar for debug
-                            verbose=True,  # Log FFmpeg output
+                            codec='libx264',
+                            audio_codec='aac',
+                            ffmpeg_params=['-movflags', '+faststart'],
+                            logger=None,
                             threads=4,
                             preset='ultrafast'
                         )
                         subclip.close()
                     
-                    time.sleep(2.0)  # Flush
-                    
-                    # Verify clip format post-save (optional debug)
-                    if self.ffmpeg_available:
-                        _, _, _, clip_format = self._get_video_info_ffmpeg(output_path)
-                        print(f"Clip {clip_num} format: {clip_format}")
+                    time.sleep(2.0)  # Increased for file flush
                     
                     if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
                         clip_label = f"Clip {clip_num:03d} ({self.format_time(current_time)} - {self.format_time(clip_end_time)})"
@@ -730,75 +672,20 @@ with gr.Blocks(css=css, title="Video Emotion Annotator") as demo:
     export_btn.click(handle_export, outputs=[export_file, export_status])
 
 if __name__ == "__main__":
-    import socket
-    
-    # Set Gradio temp directory to our controlled location
-    gradio_temp_dir = os.path.join(annotator.base_dir, 'gradio_temp')
-    os.environ['GRADIO_TEMP_DIR'] = gradio_temp_dir
-    os.makedirs(gradio_temp_dir, exist_ok=True)
-    
-    # Get absolute paths
-    working_abs = os.path.abspath(annotator.working_dir)
-    uploads_abs = os.path.abspath(annotator.uploads_dir)
-    gradio_temp_abs = os.path.abspath(gradio_temp_dir)
-    cwd_abs = os.path.abspath(os.getcwd())
-    
-    print(f"\nCurrent working directory: {cwd_abs}")
-    print(f"Working directory: {working_abs}")
-    print(f"Uploads directory: {uploads_abs}")
-    print(f"Gradio temp directory: {gradio_temp_abs}")
-    
-    def get_local_ip():
-        try:
-            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            s.connect(("8.8.8.8", 80))
-            ip = s.getsockname()[0]
-            s.close()
-            return ip
-        except:
-            return "127.0.0.1"
-    
-    local_ip = get_local_ip()
     port = 7860
     
     print("\n" + "="*60)
     print("🎬 VIDEO EMOTION ANNOTATION TOOL")
     print("="*60)
     print(f"Local URL: http://localhost:{port}")
-    print(f"Network URL: http://{local_ip}:{port}")
     print("="*60 + "\n")
     
     demo.queue(max_size=20, default_concurrency_limit=3, api_open=False)
     
-    try:
-        print("Attempting to launch...")
-        demo.launch(
-            share=True,
-            allowed_paths=[working_abs, uploads_abs, gradio_temp_abs, cwd_abs],
-            server_name="0.0.0.0",
-            server_port=port,
-            show_error=True,
-            max_threads=10,
-            inbrowser=False,
-            quiet=False,
-            show_api=False,
-            prevent_thread_lock=False
-        )
-    except Exception as e:
-        print(f"Launch failed: {e}")
-        import traceback
-        traceback.print_exc()
-        print("\nTrying alternative launch...")
-        try:
-            demo.launch(
-                share=False,
-                allowed_paths=[working_abs, uploads_abs, gradio_temp_abs, cwd_abs],
-                server_name="0.0.0.0",
-                server_port=port,
-                show_error=True,
-                inbrowser=True,
-                quiet=False
-            )
-        except Exception as e2:
-            print(f"Alternative launch failed: {e2}")
-            traceback.print_exc()
+    demo.launch(
+        share=False,
+        server_port=port,
+        inbrowser=True,
+        show_error=True,
+        quiet=False
+    )
