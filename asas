@@ -1,0 +1,154 @@
+n iter_chunks
+    yield self.to_soundarray(
+          ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\decorator.py", line 235, in fun
+    return caller(func, *(extras + args), **kw)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\moviepy\decorators.py", line 53, in requires_duration
+    return func(clip, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\moviepy\audio\AudioClip.py", line 160, in to_soundarray
+    snd_array = self.get_frame(tt)
+                ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\decorator.py", line 235, in fun
+    return caller(func, *(extras + args), **kw)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\moviepy\decorators.py", line 102, in wrapper
+    return func(*new_args, **new_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\moviepy\Clip.py", line 87, in get_frame
+    return self.frame_function(t)
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\moviepy\Clip.py", line 130, in <lambda>
+    new_clip = self.with_updated_frame_function(lambda t: func(self.get_frame, t))
+                                                          ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\moviepy\Clip.py", line 186, in <lambda>
+    lambda get_frame, t: get_frame(time_func(t)),
+                         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\decorator.py", line 235, in fun
+    return caller(func, *(extras + args), **kw)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\moviepy\decorators.py", line 102, in wrapper
+    return func(*new_args, **new_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\moviepy\Clip.py", line 87, in get_frame
+    return self.frame_function(t)
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\moviepy\audio\io\AudioFileClip.py", line 78, in <lambda>
+    self.frame_function = lambda t: self.reader.get_frame(t)
+                                    ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\moviepy\audio\io\readers.py", line 233, in get_frame
+    self.buffer_around(fr_min)
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\moviepy\audio\io\readers.py", line 284, in buffer_around
+    self.seek(new_bufferstart)
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\moviepy\audio\io\readers.py", line 184, in seek
+    self.skip_chunk(pos - self.pos)
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\moviepy\audio\io\readers.py", line 132, in skip_chunk
+    _ = self.proc.stdout.read(self.nchannels * chunksize * self.nbytes)
+        ^^^^^^^^^^^^^^^^
+AttributeError: 'NoneType' object has no attribute 'stdout'
+Creating clip 21 at C:\Users\Team\Desktop\Annotation_Emotion\emot-ann\annotation_clips\clip_add_20251024_164705_771132_021.mp4
+Error creating clip 21: 'NoneType' object has no attribute 'stdout'
+Traceback (most recent call last):
+  File "C:\Users\Team\Desktop\Annotation_Emotion\emot-ann\video.py", line 260, in process_video
+    subclip.write_videofile(
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\decorator.py", line 235, in fun
+    return caller(func, *(extras + args), **kw)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\moviepy\decorators.py", line 53, in requires_duration
+    return func(clip, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\decorator.py", line 235, in fun
+    return caller(func, *(extras + args), **kw)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\moviepy\decorators.py", line 153, in wrapper
+    return func(clip, *new_args, **new_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\decorator.py", line 235, in fun
+    return caller(func, *(extras + args), **kw)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\moviepy\decorators.py", line 24, in convert_masks_to_RGB
+    return func(clip, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\decorator.py", line 235, in fun
+    return caller(func, *(extras + args), **kw)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\moviepy\decorators.py", line 102, in wrapper
+    return func(*new_args, **new_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\moviepy\video\VideoClip.py", line 379, in write_videofile
+    self.audio.write_audiofile(
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\decorator.py", line 235, in fun
+    return caller(func, *(extras + args), **kw)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\moviepy\decorators.py", line 53, in requires_duration
+    return func(clip, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\decorator.py", line 235, in fun
+    return caller(func, *(extras + args), **kw)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\moviepy\decorators.py", line 102, in wrapper
+    return func(*new_args, **new_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\moviepy\audio\AudioClip.py", line 258, in write_audiofile
+    return ffmpeg_audiowrite(
+           ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\decorator.py", line 235, in fun
+    return caller(func, *(extras + args), **kw)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\moviepy\decorators.py", line 53, in requires_duration
+    return func(clip, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\moviepy\audio\io\ffmpeg_audiowriter.py", line 220, in ffmpeg_audiowrite
+    for chunk in clip.iter_chunks(
+                 ^^^^^^^^^^^^^^^^^
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\moviepy\audio\AudioClip.py", line 112, in iter_chunks
+    yield self.to_soundarray(
+          ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\decorator.py", line 235, in fun
+    return caller(func, *(extras + args), **kw)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\moviepy\decorators.py", line 53, in requires_duration
+    return func(clip, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\moviepy\audio\AudioClip.py", line 160, in to_soundarray
+    snd_array = self.get_frame(tt)
+                ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\decorator.py", line 235, in fun
+    return caller(func, *(extras + args), **kw)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\moviepy\decorators.py", line 102, in wrapper
+    return func(*new_args, **new_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\moviepy\Clip.py", line 87, in get_frame
+    return self.frame_function(t)
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\moviepy\Clip.py", line 130, in <lambda>
+    new_clip = self.with_updated_frame_function(lambda t: func(self.get_frame, t))
+                                                          ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\moviepy\Clip.py", line 186, in <lambda>
+    lambda get_frame, t: get_frame(time_func(t)),
+                         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\decorator.py", line 235, in fun
+    return caller(func, *(extras + args), **kw)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\moviepy\decorators.py", line 102, in wrapper
+    return func(*new_args, **new_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\moviepy\Clip.py", line 87, in get_frame
+    return self.frame_function(t)
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\moviepy\audio\io\AudioFileClip.py", line 78, in <lambda>
+    self.frame_function = lambda t: self.reader.get_frame(t)
+                                    ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\moviepy\audio\io\readers.py", line 233, in get_frame
+    self.buffer_around(fr_min)
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\moviepy\audio\io\readers.py", line 284, in buffer_around
+    self.seek(new_bufferstart)
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\moviepy\audio\io\readers.py", line 184, in seek
+    self.skip_chunk(pos - self.pos)
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\moviepy\audio\io\readers.py", line 132, in skip_chunk
+    _ = self.proc.stdout.read(self.nchannels * chunksize * self.nbytes)
+        ^^^^^^^^^^^^^^^^
+AttributeError: 'NoneType' object has no attribute 'stdout'
+Creating clip 22 at C:\Users\Team\Desktop\Annotation_Emotion\emot-ann\annotation_clips\clip_add_20251024_164706_151645_022.mp4
