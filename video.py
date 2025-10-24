@@ -6,23 +6,21 @@ import shutil
 import time
 import gc
 from contextlib import contextmanager
-from moviepy import VideoFileClip
+from moviepy.editor import VideoFileClip
 import subprocess
 
 class VideoEmotionAnnotator:
     def __init__(self):
         # Use absolute paths in current working directory
         self.base_dir = os.path.abspath(os.getcwd())
-        self.clips_dir = os.path.join(self.base_dir, 'annotation_clips')
+        self.clips_dir = None  # Set dynamically per session
         self.working_dir = os.path.join(self.base_dir, 'annotation_working')
         self.uploads_dir = os.path.join(self.base_dir, 'annotation_uploads')
         
-        # Create all directories
-        os.makedirs(self.clips_dir, exist_ok=True)
+        # Create directories (clips_dir will be temp)
         os.makedirs(self.working_dir, exist_ok=True)
         os.makedirs(self.uploads_dir, exist_ok=True)
         
-        print(f"Using clips directory: {self.clips_dir}")
         print(f"Using working directory: {self.working_dir}")
         print(f"Using uploads directory: {self.uploads_dir}")
         
@@ -49,8 +47,17 @@ class VideoEmotionAnnotator:
                             os.remove(file_path)
                     except:
                         pass
+            
+            # Clean clips from temp session dir if still there
+            if hasattr(self, 'clips_dir') and self.clips_dir and os.path.exists(self.clips_dir):
+                for file in os.listdir(self.clips_dir):
+                    if file.startswith('clip_'):  # Only our clips
+                        file_path = os.path.join(self.clips_dir, file)
+                        if os.path.isfile(file_path):
+                            os.remove(file_path)
+                            time.sleep(0.1)
         except Exception as e:
-            print(f"Error cleaning up working files: {str(e)}")
+            print(f"Error cleaning up files: {str(e)}")
     
     @contextmanager
     def video_clip_context(self, path):
@@ -234,6 +241,11 @@ class VideoEmotionAnnotator:
         if not self.working_video_path:
             return "Failed to prepare video file. Please try again.", gr.update(choices=[])
         
+        # Detect Gradio's session subdir from original upload path
+        original_upload_dir = os.path.dirname(video_path)  # e.g., ...\Temp\gradio\{session_hash}
+        self.clips_dir = original_upload_dir  # Save clips here—same as upload!
+        print(f"Saving clips to Gradio temp session dir: {self.clips_dir}")
+        
         time.sleep(0.5)
         
         progress(0.15, desc="Reading video information...")
@@ -303,7 +315,7 @@ class VideoEmotionAnnotator:
                 
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
                 clip_filename = f"clip_{self.participant_id}_{timestamp}_{clip_num:03d}.mp4"
-                output_path = os.path.join(self.clips_dir, clip_filename)
+                output_path = os.path.join(self.clips_dir, clip_filename)  # Now in temp session dir!
                 
                 print(f"Creating clip {clip_num} at {output_path}")
                 
@@ -330,12 +342,12 @@ class VideoEmotionAnnotator:
                         clip_label = f"Clip {clip_num:03d} ({self.format_time(current_time)} - {self.format_time(clip_end_time)})"
                         self.current_clips.append({
                             'label': clip_label,
-                            'path': output_path,
+                            'path': output_path,  # Full path in temp dir
                             'start': current_time,
                             'end': clip_end_time,
                             'number': clip_num
                         })
-                        print(f"Successfully saved clip to: {output_path}")
+                        print(f"Successfully saved clip to temp dir: {output_path}")
                     else:
                         print(f"Warning: Clip file not created or is empty: {output_path}")
                 
@@ -405,9 +417,9 @@ Select a clip below to begin annotating."""
         for clip in self.current_clips:
             if clip['label'] == clip_label:
                 if os.path.exists(clip['path']):
-                    rel_path = os.path.relpath(clip['path'], os.getcwd())
-                    print(f"Loading relative clip path: {rel_path}")
-                    return rel_path
+                    full_path = clip['path']  # Just return the full temp path
+                    print(f"Loading clip full path: {full_path}")
+                    return full_path  # Gradio Video will serve it like the original
         
         return None
     
@@ -618,13 +630,13 @@ with gr.Blocks(css=css, title="Video Emotion Annotator") as demo:
         if not selected_clip:
             return (None, False, 0, 0, 0, gr.update(visible=True), gr.update(visible=True), gr.update(visible=True))
         
-        video_path = annotator.load_clip(selected_clip)
+        video_path = annotator.load_clip(selected_clip)  # Now full temp path
         
-        if video_path and os.path.exists(os.path.join(os.getcwd(), video_path)):
-            print(f"Returning clip path for Gradio: {video_path}")
-            time.sleep(1.0)  # Extra browser buffer
+        if video_path and os.path.exists(video_path):
+            print(f"Clip ready in temp dir: {video_path}")
+            time.sleep(0.5)  # Short sleep—temps are fast
             return (
-                video_path,
+                video_path,  # Full path
                 False,
                 0,
                 0,
@@ -634,7 +646,7 @@ with gr.Blocks(css=css, title="Video Emotion Annotator") as demo:
                 gr.update(visible=True)
             )
         else:
-            print(f"Could not load clip: {video_path}")
+            print(f"Clip load failed: {video_path} (exists: {os.path.exists(video_path) if video_path else 'None'})")
             return (None, False, 0, 0, 0, gr.update(visible=True), gr.update(visible=True), gr.update(visible=True))
     
     clip_selector.change(
@@ -668,14 +680,12 @@ if __name__ == "__main__":
     os.makedirs(gradio_temp_dir, exist_ok=True)
     
     # Get absolute paths
-    clips_abs = os.path.abspath(annotator.clips_dir)
     working_abs = os.path.abspath(annotator.working_dir)
     uploads_abs = os.path.abspath(annotator.uploads_dir)
     gradio_temp_abs = os.path.abspath(gradio_temp_dir)
     cwd_abs = os.path.abspath(os.getcwd())
     
     print(f"\nCurrent working directory: {cwd_abs}")
-    print(f"Clips directory: {clips_abs}")
     print(f"Working directory: {working_abs}")
     print(f"Uploads directory: {uploads_abs}")
     print(f"Gradio temp directory: {gradio_temp_abs}")
@@ -706,7 +716,7 @@ if __name__ == "__main__":
         print("Attempting to launch...")
         demo.launch(
             share=True,
-            allowed_paths=[clips_abs, working_abs, uploads_abs, gradio_temp_abs, cwd_abs],
+            allowed_paths=[working_abs, uploads_abs, gradio_temp_abs, cwd_abs],
             server_name="0.0.0.0",
             server_port=port,
             show_error=True,
@@ -724,7 +734,7 @@ if __name__ == "__main__":
         try:
             demo.launch(
                 share=False,
-                allowed_paths=[clips_abs, working_abs, uploads_abs, gradio_temp_abs, cwd_abs],
+                allowed_paths=[working_abs, uploads_abs, gradio_temp_abs, cwd_abs],
                 server_name="0.0.0.0",
                 server_port=port,
                 show_error=True,
