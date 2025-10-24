@@ -26,6 +26,14 @@ class VideoEmotionAnnotator:
         print(f"Using working directory: {self.working_dir}")
         print(f"Using uploads directory: {self.uploads_dir}")
         
+        # Check FFmpeg availability
+        self.ffmpeg_available = shutil.which('ffprobe') is not None
+        
+        if self.ffmpeg_available:
+            print("FFmpeg detected - using for video info")
+        else:
+            print("FFmpeg not detected - falling back to MoviePy for video info")
+        
         self.annotations = []
         self.current_clips = []
         self.participant_id = ""
@@ -57,7 +65,10 @@ class VideoEmotionAnnotator:
             time.sleep(0.2)
     
     def _get_video_info_ffmpeg(self, path):
-        """Get video info using ffprobe"""
+        """Get video info using ffprobe - only if available"""
+        if not self.ffmpeg_available:
+            return 0, 0, 0
+        
         try:
             # Get duration
             cmd_duration = [
@@ -101,7 +112,7 @@ class VideoEmotionAnnotator:
         if not working_path:
             return 0, 0, 0
         
-        # Try ffprobe first
+        # Try ffprobe first if available
         duration, fps, frame_count = self._get_video_info_ffmpeg(working_path)
         if duration > 0:
             return duration, fps, frame_count
@@ -120,37 +131,6 @@ class VideoEmotionAnnotator:
             traceback.print_exc()
         
         return 0, 0, 0
-
-    def remux_for_web(self, input_path):
-        """Remux MP4 with faststart for better browser loading"""
-        if not os.path.exists(input_path):
-            return False
-        
-        output_path = input_path.replace('.mp4', '_faststart.mp4')
-        cmd = [
-            'ffmpeg',
-            '-i', input_path,
-            '-movflags', 'faststart',
-            '-c', 'copy',
-            '-y',
-            output_path
-        ]
-        try:
-            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-            if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
-                os.replace(output_path, input_path)
-                print(f"Remuxed for web: {input_path}")
-                return True
-            else:
-                print("Remux failed, keeping original")
-                if os.path.exists(output_path):
-                    os.remove(output_path)
-                return False
-        except Exception as e:
-            print(f"Remux error: {e}")
-            if os.path.exists(output_path):
-                os.remove(output_path)
-            return False
 
     def format_time(self, seconds):
         minutes = int(seconds // 60)
@@ -261,7 +241,7 @@ class VideoEmotionAnnotator:
         fps = 0
         duration = 0
         
-        # Try ffprobe first for info
+        # Get info (ffprobe if available, else MoviePy)
         duration, fps, _ = self._get_video_info_ffmpeg(self.working_video_path)
         if duration == 0:
             try:
@@ -337,21 +317,16 @@ class VideoEmotionAnnotator:
                             output_path,
                             codec='libx264',
                             audio_codec='aac',
+                            ffmpeg_params=['-movflags', '+faststart'],
                             logger=None,
                             threads=4,
                             preset='ultrafast'
                         )
                         subclip.close()
                     
-                    # Remux for better web loading
-                    self.remux_for_web(output_path)
-                    
                     time.sleep(1.0)  # Ensure file flush
                     
                     if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
-                        # Verify duration with ffprobe
-                        _, clip_fps, _ = self._get_video_info_ffmpeg(output_path)
-                        print(f"Clip {clip_num} info: FPS {clip_fps}")
                         clip_label = f"Clip {clip_num:03d} ({self.format_time(current_time)} - {self.format_time(clip_end_time)})"
                         self.current_clips.append({
                             'label': clip_label,
@@ -369,9 +344,6 @@ class VideoEmotionAnnotator:
                     if 'stdout' in error_str and 'NoneType' in error_str:
                         print(f"Ignoring known audio processing error for clip {clip_num}: {error_str}")
                         time.sleep(1.0)
-                        # Try remux if file exists
-                        if os.path.exists(output_path):
-                            self.remux_for_web(output_path)
                         # Check if file was still created despite error
                         if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
                             clip_label = f"Clip {clip_num:03d} ({self.format_time(current_time)} - {self.format_time(clip_end_time)})"
@@ -650,7 +622,6 @@ with gr.Blocks(css=css, title="Video Emotion Annotator") as demo:
         
         if video_path and os.path.exists(video_path):
             print(f"Returning clip path for Gradio: {video_path}")
-            time.sleep(0.5)  # Small delay for browser to catch up
             return (
                 video_path,
                 False,
