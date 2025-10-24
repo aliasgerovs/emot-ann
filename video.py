@@ -6,7 +6,7 @@ import shutil
 import time
 import gc
 from contextlib import contextmanager
-from moviepy.editor import VideoFileClip
+from moviepy import VideoFileClip
 
 class VideoEmotionAnnotator:
     def __init__(self):
@@ -252,7 +252,7 @@ class VideoEmotionAnnotator:
                     
                     try:
                         # Extract subclip using MoviePy
-                        subclip = video.subclip(current_time, clip_end_time)
+                        subclip = video.subclipped(current_time, clip_end_time)
                         
                         # Use our working directory for temp files
                         temp_audiofile = os.path.join(self.working_dir, f'temp_audio_{timestamp}_{clip_num}.m4a')
@@ -264,7 +264,6 @@ class VideoEmotionAnnotator:
                             temp_audiofile=temp_audiofile,
                             remove_temp=True,
                             logger=None,
-                            verbose=False,
                             threads=4,
                             preset='ultrafast'
                         )
