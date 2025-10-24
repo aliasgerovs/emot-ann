@@ -267,38 +267,38 @@ class VideoEmotionAnnotator:
         
         try:
             time.sleep(0.3)
-            with self.video_clip_context(self.working_video_path) as video:
-                fps = video.fps
-                self.current_clips = []
-                clip_num = 1
+            self.current_clips = []
+            clip_num = 1
+            
+            # Calculate total number of clips
+            current_time = start_time
+            total_clips = 0
+            while current_time < end_time:
+                total_clips += 1
+                current_time += interval
+            
+            print(f"Will create {total_clips} clips")
+            
+            current_clip_idx = 0
+            current_time = start_time
+            
+            while current_time < end_time:
+                clip_end_time = min(current_time + interval, end_time)
                 
-                # Calculate total number of clips
-                current_time = start_time
-                total_clips = 0
-                while current_time < end_time:
-                    total_clips += 1
-                    current_time += interval
+                progress(
+                    0.3 + (0.65 * current_clip_idx / total_clips),
+                    desc=f"Extracting clip {clip_num}/{total_clips} ({self.format_time(current_time)} - {self.format_time(clip_end_time)})"
+                )
                 
-                print(f"Will create {total_clips} clips")
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+                clip_filename = f"clip_{self.participant_id}_{timestamp}_{clip_num:03d}.mp4"
+                output_path = os.path.join(self.clips_dir, clip_filename)
                 
-                current_clip_idx = 0
-                current_time = start_time
+                print(f"Creating clip {clip_num} at {output_path}")
                 
-                while current_time < end_time:
-                    clip_end_time = min(current_time + interval, end_time)
-                    
-                    progress(
-                        0.3 + (0.65 * current_clip_idx / total_clips),
-                        desc=f"Extracting clip {clip_num}/{total_clips} ({self.format_time(current_time)} - {self.format_time(clip_end_time)})"
-                    )
-                    
-                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-                    clip_filename = f"clip_{self.participant_id}_{timestamp}_{clip_num:03d}.mp4"
-                    output_path = os.path.join(self.clips_dir, clip_filename)
-                    
-                    print(f"Creating clip {clip_num} at {output_path}")
-                    
-                    try:
+                try:
+                    # Load video fresh for each clip to avoid shared state issues
+                    with self.video_clip_context(self.working_video_path) as video:
                         # Extract subclip using MoviePy
                         subclip = video.subclip(current_time, clip_end_time)
                         
@@ -311,9 +311,27 @@ class VideoEmotionAnnotator:
                             preset='ultrafast'
                         )
                         subclip.close()
-                        
-                        time.sleep(0.2)
-                        
+                    
+                    time.sleep(0.2)
+                    
+                    if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
+                        clip_label = f"Clip {clip_num:03d} ({self.format_time(current_time)} - {self.format_time(clip_end_time)})"
+                        self.current_clips.append({
+                            'label': clip_label,
+                            'path': output_path,
+                            'start': current_time,
+                            'end': clip_end_time,
+                            'number': clip_num
+                        })
+                        print(f"Successfully saved clip to: {output_path}")
+                    else:
+                        print(f"Warning: Clip file not created or is empty: {output_path}")
+                
+                except Exception as e:
+                    error_str = str(e)
+                    if 'stdout' in error_str and 'NoneType' in error_str:
+                        print(f"Ignoring known audio processing error for clip {clip_num}: {error_str}")
+                        # Check if file was still created despite error
                         if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
                             clip_label = f"Clip {clip_num:03d} ({self.format_time(current_time)} - {self.format_time(clip_end_time)})"
                             self.current_clips.append({
@@ -323,38 +341,20 @@ class VideoEmotionAnnotator:
                                 'end': clip_end_time,
                                 'number': clip_num
                             })
-                            print(f"Successfully saved clip to: {output_path}")
+                            print(f"Clip saved despite audio error: {output_path}")
                         else:
-                            print(f"Warning: Clip file not created or is empty: {output_path}")
-                    
-                    except Exception as e:
-                        error_str = str(e)
-                        if 'stdout' in error_str and 'NoneType' in error_str:
-                            print(f"Ignoring known audio processing error for clip {clip_num}: {error_str}")
-                            # Check if file was still created despite error
-                            if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
-                                clip_label = f"Clip {clip_num:03d} ({self.format_time(current_time)} - {self.format_time(clip_end_time)})"
-                                self.current_clips.append({
-                                    'label': clip_label,
-                                    'path': output_path,
-                                    'start': current_time,
-                                    'end': clip_end_time,
-                                    'number': clip_num
-                                })
-                                print(f"Clip saved despite audio error: {output_path}")
-                            else:
-                                print(f"Clip not saved due to error: {output_path}")
-                        else:
-                            print(f"Unexpected error creating clip {clip_num}: {str(e)}")
-                            import traceback
-                            traceback.print_exc()
-                    
-                    clip_num += 1
-                    current_clip_idx += 1
-                    current_time += interval
-                    
-                    # Clean up memory
-                    gc.collect()
+                            print(f"Clip not saved due to error: {output_path}")
+                    else:
+                        print(f"Unexpected error creating clip {clip_num}: {str(e)}")
+                        import traceback
+                        traceback.print_exc()
+                
+                clip_num += 1
+                current_clip_idx += 1
+                current_time += interval
+                
+                # Clean up memory
+                gc.collect()
         
         except Exception as e:
             print(f"Error during clip extraction: {str(e)}")
