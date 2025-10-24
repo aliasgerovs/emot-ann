@@ -368,3 +368,67 @@ Traceback (most recent call last):
 AttributeError: 'NoneType' object has no attribute 'stdout'
 Returning clip path: C:\Users\Team\Desktop\Annotation_Emotion\emot-ann\annotation_clips\clip_sdsd_20251024_165730_053388_001.mp4
 Returning clip path: C:\Users\Team\Desktop\Annotation_Emotion\emot-ann\annotation_clips\clip_sdsd_20251024_165736_885591_008.mp4
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                 ^^^^^^^^^^^^^^^^^
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\moviepy\audio\AudioClip.py", line 112, in iter_chunks
+    yield self.to_soundarray(
+          ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\decorator.py", line 235, in fun
+    return caller(func, *(extras + args), **kw)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\moviepy\decorators.py", line 53, in requires_duration
+    return func(clip, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\moviepy\audio\AudioClip.py", line 160, in to_soundarray
+    snd_array = self.get_frame(tt)
+                ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\decorator.py", line 235, in fun
+    return caller(func, *(extras + args), **kw)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\moviepy\decorators.py", line 102, in wrapper
+    return func(*new_args, **new_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\moviepy\Clip.py", line 87, in get_frame
+    return self.frame_function(t)
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\moviepy\Clip.py", line 130, in <lambda>
+    new_clip = self.with_updated_frame_function(lambda t: func(self.get_frame, t))
+                                                          ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\moviepy\Clip.py", line 186, in <lambda>
+    lambda get_frame, t: get_frame(time_func(t)),
+                         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\decorator.py", line 235, in fun
+    return caller(func, *(extras + args), **kw)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\moviepy\decorators.py", line 102, in wrapper
+    return func(*new_args, **new_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\moviepy\Clip.py", line 87, in get_frame
+    return self.frame_function(t)
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\moviepy\audio\io\AudioFileClip.py", line 78, in <lambda>
+    self.frame_function = lambda t: self.reader.get_frame(t)
+                                    ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\moviepy\audio\io\readers.py", line 235, in get_frame
+    self.buffer_around(fr_max)
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\moviepy\audio\io\readers.py", line 281, in buffer_around
+    array = self.read_chunk(chunksize)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Team\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\moviepy\audio\io\readers.py", line 155, in read_chunk
+    s = self.proc.stdout.read(self.nchannels * chunksize * self.nbytes)
+        ^^^^^^^^^^^^^^^^
+AttributeError: 'NoneType' object has no attribute 'stdout'
