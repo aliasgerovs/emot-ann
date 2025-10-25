@@ -14,22 +14,22 @@ class VideoEmotionAnnotator:
     def __init__(self):
         # Use absolute paths in current working directory
         self.base_dir = os.path.abspath(os.getcwd())
-        self.clips_dir = os.path.join(self.base_dir, 'annotation_clips')
+        self.clips_dir = None  # Set dynamically per session
         self.working_dir = os.path.join(self.base_dir, 'annotation_working')
         self.uploads_dir = os.path.join(self.base_dir, 'annotation_uploads')
+        self.annotation_clips_dir = os.path.join(self.base_dir, 'annotation_clips')
         
-        # Create directories
-        os.makedirs(self.clips_dir, exist_ok=True)
+        # Create directories (clips_dir will be temp)
         os.makedirs(self.working_dir, exist_ok=True)
         os.makedirs(self.uploads_dir, exist_ok=True)
+        os.makedirs(self.annotation_clips_dir, exist_ok=True)
         
-        print(f"Using clips directory: {self.clips_dir}")
         print(f"Using working directory: {self.working_dir}")
         print(f"Using uploads directory: {self.uploads_dir}")
+        print(f"Using annotation clips directory: {self.annotation_clips_dir}")
         
         # Check FFmpeg availability
         self.ffmpeg_available = shutil.which('ffprobe') is not None
-        self.ffmpeg_exe = shutil.which('ffmpeg')
         
         if self.ffmpeg_available:
             print("FFmpeg detected - using for video info")
@@ -197,38 +197,7 @@ class VideoEmotionAnnotator:
             import traceback
             traceback.print_exc()
             return None
-
-    def extract_clip_ffmpeg(self, working_video_path, start, end, output_path):
-        duration = end - start
-        cmd = [
-            'ffmpeg',
-            '-ss', str(start),
-            '-i', working_video_path,
-            '-t', str(duration),
-            '-c:v', 'libx264',
-            '-preset', 'ultrafast',
-            '-c:a', 'aac',
-            '-threads', '1',
-            '-movflags', '+faststart',
-            '-y',
-            output_path
-        ]
-        try:
-            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-            time.sleep(0.5)
-            if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
-                return True, output_path
-            else:
-                return False, None
-        except subprocess.CalledProcessError as e:
-            print(f"FFmpeg error: {e.stderr}")
-            if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
-                return True, output_path
-            return False, None
-        except Exception as e:
-            print(f"Extract error: {e}")
-            return False, None
-
+    
     def process_video(self, video_file, participant_id, start_time, interval, process_minutes, progress=gr.Progress()):
         if not video_file or not participant_id:
             return "Please upload a video and provide a Participant ID.", gr.update(choices=[])
@@ -276,11 +245,11 @@ class VideoEmotionAnnotator:
         if not self.working_video_path:
             return "Failed to prepare video file. Please try again.", gr.update(choices=[])
         
-        video_name = os.path.splitext(os.path.basename(video_path))[0]
-        video_subdir = os.path.join(self.clips_dir, video_name)
-        os.makedirs(video_subdir, exist_ok=True)
-        self.clips_dir = video_subdir
-        print(f"Saving clips to persistent dir: {self.clips_dir}")
+        # Create clips directory with video name
+        video_filename = os.path.splitext(os.path.basename(self.working_video_path))[0]
+        self.clips_dir = os.path.join(self.annotation_clips_dir, video_filename)
+        os.makedirs(self.clips_dir, exist_ok=True)
+        print(f"Saving clips to: {self.clips_dir}")
         
         time.sleep(0.5)
         
@@ -327,64 +296,100 @@ class VideoEmotionAnnotator:
         try:
             time.sleep(0.3)
             self.current_clips = []
-            clip_num = 1
-            
-            # Calculate total number of clips and prepare params
+            clip_params_list = []
             current_time = start_time
-            total_clips = 0
-            params_list = []
+            clip_num = 1
             while current_time < end_time:
                 clip_end_time = min(current_time + interval, end_time)
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-                clip_filename = f"clip_{self.participant_id}_{timestamp}_{clip_num:03d}.mp4"
-                output_path = os.path.join(self.clips_dir, clip_filename)
-                params_list.append((current_time, clip_end_time, output_path, clip_num))
-                total_clips += 1
+                clip_params_list.append((current_time, clip_end_time, clip_num))
                 current_time += interval
                 clip_num += 1
             
+            total_clips = len(clip_params_list)
             print(f"Will create {total_clips} clips")
-            
-            if total_clips == 0:
-                return "No clips to create based on parameters.", gr.update(choices=[])
-            
-            completed = 0
-            
-            with ThreadPoolExecutor(max_workers=30) as executor:
-                future_to_idx = {
-                    executor.submit(self.extract_clip_ffmpeg, self.working_video_path, p[0], p[1], p[2]): idx 
-                    for idx, p in enumerate(params_list)
-                }
+
+            def create_single_clip(clip_params):
+                current_time, clip_end_time, clip_num = clip_params
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+                clip_filename = f"clip_{self.participant_id}_{timestamp}_{clip_num:03d}.mp4"
+                output_path = os.path.join(self.clips_dir, clip_filename)
                 
-                for future in as_completed(future_to_idx):
-                    idx = future_to_idx[future]
-                    start, end, output_path, clip_num = params_list[idx]
-                    try:
-                        success, path = future.result()
-                        if success:
-                            clip_label = f"Clip {clip_num:03d} ({self.format_time(start)} - {self.format_time(end)})"
-                            self.current_clips.append({
+                try:
+                    with self.video_clip_context(self.working_video_path) as video:
+                        subclip = video.subclip(current_time, clip_end_time)
+                        
+                        subclip.write_videofile(
+                            output_path,
+                            codec='libx264',
+                            audio_codec='aac',
+                            ffmpeg_params=['-movflags', '+faststart'],
+                            logger=None,
+                            threads=1,
+                            preset='ultrafast'
+                        )
+                        subclip.close()
+                    
+                    time.sleep(2.0)
+                    
+                    if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
+                        clip_label = f"Clip {clip_num:03d} ({self.format_time(current_time)} - {self.format_time(clip_end_time)})"
+                        return {
+                            'label': clip_label,
+                            'path': output_path,
+                            'start': current_time,
+                            'end': clip_end_time,
+                            'number': clip_num
+                        }
+                    else:
+                        return None
+                
+                except Exception as e:
+                    error_str = str(e)
+                    if 'stdout' in error_str and 'NoneType' in error_str:
+                        print(f"Ignoring known audio processing error for clip {clip_num}: {error_str}")
+                        time.sleep(2.0)
+                        if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
+                            clip_label = f"Clip {clip_num:03d} ({self.format_time(current_time)} - {self.format_time(clip_end_time)})"
+                            return {
                                 'label': clip_label,
-                                'path': path,
-                                'start': start,
-                                'end': end,
+                                'path': output_path,
+                                'start': current_time,
+                                'end': clip_end_time,
                                 'number': clip_num
-                            })
-                            print(f"Successfully saved clip {clip_num} to: {path}")
-                            completed += 1
-                            progress(
-                                0.3 + (0.65 * completed / total_clips),
-                                desc=f"Extracted {completed}/{total_clips} clips"
-                            )
+                            }
                         else:
-                            print(f"Failed to create clip {clip_num}")
-                    except Exception as e:
-                        print(f"Unexpected error for clip {clip_num}: {str(e)}")
+                            return None
+                    else:
+                        print(f"Unexpected error creating clip {clip_num}: {str(e)}")
                         import traceback
                         traceback.print_exc()
+                        return None
             
-            # Clean up memory
-            gc.collect()
+            progress(0.3, desc="Starting parallel clip extraction...")
+            
+            with ThreadPoolExecutor(max_workers=30) as executor:
+                future_to_clipnum = {executor.submit(create_single_clip, params): params[2] for params in clip_params_list}
+                completed = 0
+                for future in as_completed(future_to_clipnum):
+                    try:
+                        result = future.result()
+                        if result:
+                            self.current_clips.append(result)
+                            print(f"Successfully created clip {result['number']}")
+                        completed += 1
+                        progress(
+                            0.3 + (0.65 * completed / total_clips),
+                            desc=f"Extracted {completed}/{total_clips} clips"
+                        )
+                    except Exception as exc:
+                        print(f"Error in clip future: {exc}")
+                        completed += 1
+                        progress(
+                            0.3 + (0.65 * completed / total_clips),
+                            desc=f"Extracted {completed}/{total_clips} clips (some errors)"
+                        )
+            
+            self.current_clips.sort(key=lambda x: x['number'])
         
         except Exception as e:
             print(f"Error during clip extraction: {str(e)}")
@@ -690,7 +695,6 @@ if __name__ == "__main__":
     demo.launch(
         share=False,
         server_port=port,
-        allowed_paths=[annotator.base_dir],
         inbrowser=True,
         show_error=True,
         quiet=False
