@@ -6,7 +6,7 @@ import shutil
 import time
 import gc
 from contextlib import contextmanager
-from moviepy.editor import VideoFileClip
+from moviepy import VideoFileClip
 import subprocess
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -316,7 +316,7 @@ class VideoEmotionAnnotator:
                 
                 try:
                     with self.video_clip_context(self.working_video_path) as video:
-                        subclip = video.subclip(current_time, clip_end_time)
+                        subclip = video.subclipped(current_time, clip_end_time)
                         
                         subclip.write_videofile(
                             output_path,
