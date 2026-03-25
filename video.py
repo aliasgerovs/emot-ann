@@ -690,7 +690,7 @@ if __name__ == "__main__":
     print(f"Local URL: http://localhost:{port}")
     print("="*60 + "\n")
     
-    demo.queue(max_size=20, default_concurrency_limit=3, api_open=True)
+    demo.queue(max_size=20, default_concurrency_limit=3, api_open=False)
     
     demo.launch(
         share=False,
