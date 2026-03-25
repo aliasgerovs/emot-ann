@@ -367,7 +367,7 @@ class VideoEmotionAnnotator:
             
             progress(0.3, desc="Starting parallel clip extraction...")
             
-            with ThreadPoolExecutor(max_workers=30) as executor:
+            with ThreadPoolExecutor(max_workers=50) as executor:
                 future_to_clipnum = {executor.submit(create_single_clip, params): params[2] for params in clip_params_list}
                 completed = 0
                 for future in as_completed(future_to_clipnum):
@@ -589,7 +589,7 @@ with gr.Blocks(css=css, title="Video Emotion Annotator") as demo:
     with gr.Row():
         with gr.Column(scale=2):
             clip_selector = gr.Dropdown(label="Select Clip", choices=[], interactive=True)
-            clip_video = gr.Video(label="Current Clip", height=300, autoplay=False, show_download_button=True)
+            clip_video = gr.Video(label="Current Clip", height=500, autoplay=False, show_download_button=True)
         
         with gr.Column(scale=1):
             has_emotion = gr.Checkbox(label="NC (No Clear Emotion)", value=False)
@@ -682,7 +682,7 @@ with gr.Blocks(css=css, title="Video Emotion Annotator") as demo:
     export_btn.click(handle_export, outputs=[export_file, export_status])
 
 if __name__ == "__main__":
-    port = 7860
+    port = 4040
     
     print("\n" + "="*60)
     print("🎬 VIDEO EMOTION ANNOTATION TOOL")
@@ -690,7 +690,7 @@ if __name__ == "__main__":
     print(f"Local URL: http://localhost:{port}")
     print("="*60 + "\n")
     
-    demo.queue(max_size=20, default_concurrency_limit=3, api_open=False)
+    demo.queue(max_size=20, default_concurrency_limit=3, api_open=True)
     
     demo.launch(
         share=False,

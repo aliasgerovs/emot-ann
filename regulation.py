@@ -430,10 +430,6 @@ Select a clip below to begin annotating."""
         if not clip_info:
             return "⚠️ Clip not found."
         
-        if has_no_emotion:
-            focused_stimulus = distraction = interaction_family = interaction_experimenter = 0
-            self_comforting = persistence = checking_adults = out_of_chair = 0
-        
         annotation = {
             'ParticipantID': self.participant_id,
             'TaskType': task_type,
@@ -588,7 +584,7 @@ with gr.Blocks(css=css, title="Video Emotion Annotator v2") as demo:
         with gr.Column(scale=1):
             has_emotion = gr.Checkbox(label="NC (No Clear Emotion)", value=False)
             
-            behavioral_md = gr.Markdown("**Behavioral scales (per clip):**", visible=True)
+            gr.Markdown("**Behavioral scales (per clip):**")
             focused_stimulus = gr.Slider(0, 1, step=1, label="Focused on Stimulus (0-1)", value=0)
             distraction = gr.Slider(0, 1, step=1, label="Distraction (0-1)", value=0)
             interaction_family = gr.Slider(0, 1, step=1, label="Interaction with Family Member(s) (0-1)", value=0)
@@ -616,17 +612,7 @@ with gr.Blocks(css=css, title="Video Emotion Annotator v2") as demo:
     def set_presence_of_others(val):
         annotator.presence_of_others = int(val) if val is not None else 0
     
-    def toggle_behavioral_visibility(nc_checked):
-        visible = not nc_checked
-        return tuple(gr.update(visible=visible) for _ in range(9))
-    
     presence_of_others.change(set_presence_of_others, inputs=[presence_of_others])
-    has_emotion.change(
-        toggle_behavioral_visibility,
-        inputs=[has_emotion],
-        outputs=[behavioral_md, focused_stimulus, distraction, interaction_family,
-                 interaction_experimenter, self_comforting, persistence, checking_adults, out_of_chair]
-    )
     
     video_input.upload(on_video_upload, inputs=[video_input], outputs=[upload_status, start_minutes, start_seconds, process_minutes])
     
